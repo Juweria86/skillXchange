@@ -2,9 +2,44 @@ import MainLayout from "../components/layout/MainLayout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { Link } from "react-router-dom";
-import { ArrowRight} from "lucide-react";
+import { CheckCircle, ArrowRight, Lightbulb, Rocket, Users } from "lucide-react";
+
 
 import WatermarkedSection from "../components/ui/WatermarkedSection";
+
+
+const features = [
+  {
+    title: "Skill Matching",
+    desc: "Get connected with peers based on skills you want to learn and skills you can teach.",
+    icon: Users,
+  },
+  {
+    title: "In-App Messaging",
+    desc: "Communicate and collaborate with your match directly through the platform.",
+    icon: Lightbulb,
+  },
+  {
+    title: "Session Scheduling",
+    desc: "Plan and manage your learning sessions in a calendar-based interface.",
+    icon: Rocket,
+  },
+];
+
+const steps = [
+  {
+    title: "1. Create Your Profile",
+    desc: "List the skills you can teach and those you want to learn.",
+  },
+  {
+    title: "2. Get Matched",
+    desc: "The platform finds ideal partners based on your preferences.",
+  },
+  {
+    title: "3. Learn & Teach",
+    desc: "Connect, chat, and schedule sessions to swap skills!",
+  },
+];
 
 export default function HomePage() {
   return (
@@ -30,7 +65,7 @@ export default function HomePage() {
                 <div className="absolute right-[30%] top-[10%] transform rotate-3">
                   <div className="bg-pink-200 rounded-2xl p-1 shadow-md">
                     <img
-                      src="https://api.dicebear.com/7.x/fun-emoji/svg?seed=Fatima"
+                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=Kwame"
                       alt="Avatar 2 - Female"
                       width={90}
                       height={90}
@@ -54,7 +89,7 @@ export default function HomePage() {
                 <div className="absolute right-[15%] top-[45%] transform -rotate-6">
                   <div className="bg-pink-200 rounded-3xl p-1 shadow-md">
                     <img
-                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=Kwame"
+                      src="/hij.jpeg"
                       alt="Avatar 4"
                       width={150}
                       height={150}
@@ -97,6 +132,61 @@ export default function HomePage() {
             </div>
           </div>
         </main>
+
+
+        <section className="bg-white py-20 px-4" id="about">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl font-bold mb-6 text-[#4a3630]">About SkillXchange</h2>
+            <p className="text-lg text-gray-700 mb-4">
+              SkillXchange is built for students and young professionals to connect, share, and grow through
+              peer-to-peer learning. Developed as a final year project for Mogadishu University, it empowers skill
+              exchange through a simple and intuitive platform.
+            </p>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="bg-gray-100 py-20 px-4" id="features">
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-4xl font-bold mb-12 text-[#4a3630]">Key Features</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              {features.map(({ title, desc, icon: Icon }, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-xl shadow-lg p-6 border border-yellow-200 hover:shadow-xl transition"
+                >
+                  <Icon className="w-10 h-10 text-[#123C94] mb-4 mx-auto" />
+                  <h3 className="text-xl font-semibold mb-2">{title}</h3>
+                  <p className="text-gray-600 text-sm">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works Section */}
+        <section className="bg-white py-20 px-4" id="how-it-works">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-4xl font-bold mb-12 text-[#4a3630]">How It Works</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              {steps.map(({ title, desc }, idx) => (
+                <div
+                  key={idx}
+                  className="bg-yellow-100 rounded-xl p-6 shadow border border-yellow-200"
+                >
+                  <h3 className="text-xl font-semibold mb-2 text-[#4a3630]">{title}</h3>
+                  <p className="text-gray-700 text-sm">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="bg-[#F9F9F9] py-8 text-center text-sm text-gray-500 border-t">
+          Built for <strong>Mogadishu University</strong> — Final Year CS Project © {new Date().getFullYear()}
+        </footer>
+    
     </MainLayout>
   );
 }

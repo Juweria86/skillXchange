@@ -17,6 +17,8 @@ import MySessionsPage from "./pages/MySessionsPage"
 import MessagesPage from "./pages/MessagesPage"
 import CommunityPage from "./pages/CommunityPage"
 import SettingsPage from "./pages/SettingsPage"
+import AboutPage from "./pages/About"
+import FeaturesPage from "./pages/Feutures"
 
 function App() {
   return (
@@ -39,6 +41,9 @@ function App() {
       <Route path="/messages" element={<MessagesPage />} />
       <Route path="/community" element={<CommunityPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/about" element={<AboutPage/>} />
+      <Route path="/feautures" element={<FeaturesPage />} />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
