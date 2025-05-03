@@ -1,5 +1,5 @@
 const express = require("express");
-const { register, login } = require("../controllers/authController");
+const { register, login, verifyEmail, resendVerification, forgotPassword, resetPassword, googleLogin } = require("../controllers/authController");
 const { body } = require("express-validator");
 
 const router = express.Router();
@@ -22,5 +22,15 @@ router.post(
   ],
   login
 );
+
+router.get("/verify/:token", verifyEmail);
+router.post("/resend-verification", resendVerification);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
+router.post("/google-login", googleLogin);
+
+
+
+
 
 module.exports = router;

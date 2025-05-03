@@ -34,9 +34,18 @@ const userSchema = new mongoose.Schema(
       },
     ],
     friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
+    isVerified: { type: Boolean, default: false },
+    verifyToken: { type: String },
+    verifyTokenExpires: { type: Date },
+    resetToken: String,
+    resetTokenExpires: Date,
+
+
 
   },
+
   { timestamps: true }
 );
 

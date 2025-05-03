@@ -59,4 +59,5 @@ router.post(
 router.get("/friend-requests", protect, getPendingRequests);
 router.get("/friends", protect, getMyFriends);
 
+
 module.exports = router;
