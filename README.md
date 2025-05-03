@@ -6,7 +6,7 @@ A peer-to-peer web platform that enables users to **teach and learn skills** by 
 
 ## ✨ Features
 
-- 🔐 User Registration & Login (Email + Google OAuth)
+- 🔐 User Registration & Login (Email verification + Google OAuth)
 - 🧑‍🏫 Personalized Profiles with Skills & Experience
 - 🔁 AI-powered Skill Matching System
 - 📅 Session Booking & Calendar Management
