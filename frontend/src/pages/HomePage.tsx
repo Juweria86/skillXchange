@@ -53,7 +53,7 @@ export default function HomePage() {
                 <div className="absolute left-[10%] top-[15%] transform -rotate-6">
                   <div className="bg-orange-300 rounded-3xl p-1 shadow-md">
                     <img
-                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=Jordan"
+                      src="/white.jpeg"
                       alt="Avatar 1 - Youthful"
                       width={120}
                       height={120}
@@ -62,10 +62,10 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="absolute right-[30%] top-[10%] transform rotate-3">
+                <div className="absolute right-[40%] top-[10%] transform rotate-3">
                   <div className="bg-pink-200 rounded-2xl p-1 shadow-md">
                     <img
-                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=Kwame"
+                      src="/brown.jpeg"
                       alt="Avatar 2 - Female"
                       width={90}
                       height={90}
@@ -77,7 +77,7 @@ export default function HomePage() {
                 <div className="absolute left-[25%] top-[50%] transform rotate-12">
                   <div className="bg-gray-800 rounded-3xl p-1 shadow-md">
                     <img
-                      src="https://api.dicebear.com/7.x/adventurer/svg?seed=Raj"
+                      src="/black.jpeg"
                       alt="Avatar 3"
                       width={100}
                       height={100}
@@ -181,11 +181,6 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-
-        {/* Footer */}
-        <footer className="bg-[#F9F9F9] py-8 text-center text-sm text-gray-500 border-t">
-          Built for <strong>Mogadishu University</strong> — Final Year CS Project © {new Date().getFullYear()}
-        </footer>
     
     </MainLayout>
   );

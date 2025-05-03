@@ -17,8 +17,11 @@ import MySessionsPage from "./pages/MySessionsPage"
 import MessagesPage from "./pages/MessagesPage"
 import CommunityPage from "./pages/CommunityPage"
 import SettingsPage from "./pages/SettingsPage"
-import AboutPage from "./pages/About"
-import FeaturesPage from "./pages/Feutures"
+import RequireAuth from "./components/auth/RequireAuth";
+import VerifyEmailPage from "./pages/VerifyEmailPage"
+import ResendVerificationPage from "./pages/ResendVerificationPage"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage"
+import ResetPasswordPage from "./pages/ResetPasswordPage"
 
 function App() {
   return (
@@ -33,7 +36,7 @@ function App() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/find-match" element={<FindMatchPage />} />
       <Route path="/customize-profile" element={<CustomizeProfilePage />} />
-      <Route path="/home-dashboard" element={<HomeDashboardPage />} />
+      <Route path="/home-dashboard" element={ <RequireAuth><HomeDashboardPage /></RequireAuth>} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/my-skills" element={<MySkillsPage />} />
       <Route path="/skill-matches" element={<SkillMatchesPage />} />
@@ -41,8 +44,15 @@ function App() {
       <Route path="/messages" element={<MessagesPage />} />
       <Route path="/community" element={<CommunityPage />} />
       <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/about" element={<AboutPage/>} />
-      <Route path="/feautures" element={<FeaturesPage />} />
+      <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+      <Route path="/resend-verification" element={<ResendVerificationPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+
+      
+
+
+
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -13,7 +13,7 @@ export default function Header({ showAuthButtons = true }: HeaderProps) {
 
         {showAuthButtons && (
           <div className="flex items-center gap-4">
-            <Button variant="ghost" asLink to="/about">
+            <Button variant="ghost" asLink to="#">
               About
             </Button>
             <Button variant="ghost" asLink to="/feautures">

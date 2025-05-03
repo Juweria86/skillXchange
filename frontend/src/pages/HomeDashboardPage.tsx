@@ -9,6 +9,7 @@ import Card from "../components/ui/Card"
 import Input from "../components/ui/Input"
 import Avatar from "../components/ui/Avatar"
 import Badge from "../components/ui/Badge"
+import Footer from "@/components/layout/Footer"
 
 export default function HomeDashboardPage() {
   return (
@@ -200,5 +201,6 @@ export default function HomeDashboardPage() {
         </main>
       </div>
     </div>
+  
   )
 }
