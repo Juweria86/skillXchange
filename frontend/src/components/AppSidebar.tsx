@@ -1,7 +1,7 @@
 "use client"
 
 import { Link, useLocation } from "react-router-dom"
-import { Home, UserCircle, Brain, RefreshCw, Calendar, MessageSquare, Settings, LogOut, Menu, X } from "lucide-react"
+import { Home, UserCircle, Brain, RefreshCw, Calendar, MessageSquare, Settings, LogOut, Menu, X, Users } from "lucide-react"
 import { useSidebar } from "../context/SidebarContext"
 
 export default function AppSidebar() {
@@ -99,6 +99,15 @@ export default function AppSidebar() {
               <Calendar size={20} />
               <span>My Sessions</span>
             </Link>
+                     <Link
+            to="/connections"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+              isActive("/connections") ? "text-[#4a3630] bg-[#FBEAA0] font-medium" : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <Users size={20} />
+            <span>Connections</span>
+          </Link>
             <Link
               to="/messages"
               className={`flex items-center gap-3 px-4 py-3 rounded-lg ${

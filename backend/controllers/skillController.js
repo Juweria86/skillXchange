@@ -3,14 +3,16 @@ const User = require("../models/User");
 const { validationResult } = require("express-validator");
 
 // GET all skills
+// GET all skills for the current user
 exports.getAllSkills = async (req, res) => {
   try {
-    const skills = await Skill.find();
+    const skills = await Skill.find({ user: req.user.id });
     res.json(skills);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching skills", error: err.message });
+    res.status(500).json({ message: "Error fetching user-specific skills", error: err.message });
   }
 };
+
 
 // GET single skill by ID
 exports.getSkillById = async (req, res) => {
@@ -24,23 +26,33 @@ exports.getSkillById = async (req, res) => {
 };
 
 // CREATE a new skill (admin or system use)
+// controllers/skillController.js
 exports.createSkill = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   try {
-    const { name, description, level, experience } = req.body;
-
+    const { name, description, level, experience, type } = req.body;
+    
     const skill = new Skill({
       name,
       description,
       level,
-      experience
+      experience,
+      type,
+      user: req.user.id
     });
 
     const savedSkill = await skill.save();
+    
+    // Update user's skills array based on type
+    if (type === "teaching") {
+      await User.findByIdAndUpdate(req.user.id, {
+        $addToSet: { skillsICanTeach: savedSkill._id }
+      });
+    } else {
+      await User.findByIdAndUpdate(req.user.id, {
+        $addToSet: { skillsIWantToLearn: savedSkill._id }
+      });
+    }
+
     res.status(201).json(savedSkill);
   } catch (err) {
     res.status(500).json({ message: "Error creating skill", error: err.message });

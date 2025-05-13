@@ -1,6 +1,8 @@
 const express = require("express");
 const { body } = require("express-validator");
 const { protect } = require("../middleware/authMiddleware");
+const uploadProfileImage = require('../middleware/uploadMiddleware');
+
 
 const {
   updateUserSkills,
@@ -12,34 +14,20 @@ const {
   acceptFriendRequestValidators,
   getPendingRequests,
   getMyFriends,
+  completeOnboarding,
+  checkOnboardingStatus,
+  getUserProfile,
+  updateUserProfile,
+  getUserById,
+  
 } = require("../controllers/userController");
 
 const router = express.Router();
 
-// PATCH /api/users/update-skills
-router.patch(
-  "/update-skills",
-  protect,
-  [
-    body("skillsICanTeach").optional().isArray().withMessage("skillsICanTeach must be an array of skill IDs"),
-    body("skillsIWantToLearn").optional().isArray().withMessage("skillsIWantToLearn must be an array of skill IDs"),
-  ],
-  updateUserSkills
-);
 
-// POST /api/users/add-skill
-router.post(
-  "/add-skill",
-  protect,
-  [
-    body("skillId").notEmpty().withMessage("skillId is required"),
-    body("type").isIn(["teach", "learn"]).withMessage("Type must be either 'teach' or 'learn'"),
-  ],
-  addSkillToUser
-);
-
-// GET /api/users/my-skills
-router.get("/my-skills", protect, getMySkills);
+router.get('/profile', protect, getUserProfile);
+router.put("/", protect, uploadProfileImage, updateUserProfile);
+router.get("/:id", protect, getUserById);
 
 
 router.post(
@@ -58,6 +46,8 @@ router.post(
 
 router.get("/friend-requests", protect, getPendingRequests);
 router.get("/friends", protect, getMyFriends);
+router.get('/check-onboarding', protect, checkOnboardingStatus);
+router.post('/onboarding', protect, uploadProfileImage, completeOnboarding);
 
 
 module.exports = router;

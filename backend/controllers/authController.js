@@ -60,6 +60,7 @@ exports.login = async (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
+  
   const { email, password } = req.body;
   
   try {
@@ -72,12 +73,18 @@ exports.login = async (req, res) => {
     if (!user.isVerified) {
       return res.status(403).json({ message: "Please verify your email before logging in" });
     }
-    
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
     
-
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email,
+        isOnboarded: user.isOnboarded // Critical for frontend redirection
+      } 
+    });
   } catch (err) {
     res.status(500).json({ message: "Login failed", error: err.message });
   }

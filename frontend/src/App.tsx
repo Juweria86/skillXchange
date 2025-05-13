@@ -22,6 +22,10 @@ import VerifyEmailPage from "./pages/VerifyEmailPage"
 import ResendVerificationPage from "./pages/ResendVerificationPage"
 import ForgotPasswordPage from "./pages/ForgotPasswordPage"
 import ResetPasswordPage from "./pages/ResetPasswordPage"
+import OnboardingForm from "./pages/OnboardingForm"
+import EditProfilePage from "./pages/EditProfilePage"
+import ConnectionsPage from "./pages/ConnectionsPage"
+import RequestSessionModal from "./components/connections/RequestSessionModal"
 
 function App() {
   return (
@@ -38,6 +42,7 @@ function App() {
       <Route path="/customize-profile" element={<CustomizeProfilePage />} />
       <Route path="/home-dashboard" element={ <RequireAuth><HomeDashboardPage /></RequireAuth>} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/edit-profile" element={<EditProfilePage />} />
       <Route path="/my-skills" element={<MySkillsPage />} />
       <Route path="/skill-matches" element={<SkillMatchesPage />} />
       <Route path="/my-sessions" element={<MySessionsPage />} />
@@ -48,6 +53,20 @@ function App() {
       <Route path="/resend-verification" element={<ResendVerificationPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+      <Route path="/onboarding" element={ <RequireAuth><OnboardingForm /></RequireAuth>} />
+      <Route path="/request" element={<RequestSessionModal connection={{
+        id: "",
+        name: "",
+        avatar: "",
+        skills: []
+      }} isOpen={false} onClose={function (): void {
+        throw new Error("Function not implemented.")
+      } } onSubmit={function (sessionDetails: any): void {
+        throw new Error("Function not implemented.")
+      } } />} />
+
+
+
 
       
 

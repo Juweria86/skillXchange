@@ -11,6 +11,11 @@ const skillSchema = new mongoose.Schema(
       enum: ["Beginner", "Intermediate", "Expert"],
       default: "Beginner",
     },
+    type: {
+      type: String,
+      enum: ["teaching", "learning"],
+      required: true
+    },
     experience: String,
     description: String,
     user: {

@@ -15,7 +15,7 @@ interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>
   onChange?: (value: string) => void
 }
 
-export function Select({ className, label, error, options, onChange, id, ...props }: SelectProps) {
+export default function Select({ className, label, error, options, onChange, id, ...props }: SelectProps) {
   const selectId = id || label?.toLowerCase().replace(/\s+/g, "-")
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

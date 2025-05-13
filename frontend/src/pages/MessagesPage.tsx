@@ -1,288 +1,170 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Search, Check, CheckCheck, Paperclip, ImageIcon, Smile, Send, Calendar } from "lucide-react"
-import AppSidebar from "../components/AppSidebar"
-import PageHeader from "../components/layout/PageHeader"
-import Input from "../components/ui/Input"
-import Button from "../components/ui/Button"
-import Avatar from "../components/ui/Avatar"
+import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
+import { useAppDispatch } from "../hooks/useTypedHooks";
+import { useUserById } from "../hooks/useUserById";
+import { getMessages, sendMessage, addMessage } from "../features/messages/messageSlice";
+import { useSocket } from "../context/SocketContext";
+import { Search, Paperclip, ImageIcon, Smile, Send, Calendar, CheckCheck } from "lucide-react";
+import AppSidebar from "../components/AppSidebar";
+import PageHeader from "../components/layout/PageHeader";
+import Input from "../components/ui/Input";
+import Avatar from "../components/ui/Avatar";
 
-// Chat list item component
-function ChatListItem({ chat, isActive, onClick }: { chat: any; isActive: boolean; onClick: () => void }) {
+function ChatListItem({ chat, isActive, onClick }) {
   return (
     <button
-      className={`w-full flex items-center gap-3 p-3 rounded-lg text-left ${
-        isActive ? "bg-[#FBEAA0]" : "hover:bg-gray-100 focus:bg-gray-100"
-      }`}
+      className={`w-full flex items-center gap-3 p-3 rounded-lg text-left ${isActive ? "bg-[#FBEAA0]" : "hover:bg-gray-100"}`}
       onClick={onClick}
     >
       <div className="relative">
-        <Avatar src={chat.user.avatar} size="md" fallback={chat.user.name} />
-        {chat.user.online && (
-          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+        <Avatar src={chat.avatar} size="md" fallback={chat.name} />
+        {chat.online && (
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex justify-between items-center">
-          <h3 className="font-medium text-gray-900 truncate">{chat.user.name}</h3>
-          <span className="text-xs text-gray-500">{chat.lastMessage.time}</span>
-        </div>
-        <p className={`text-sm truncate ${chat.unread > 0 ? "font-medium text-gray-900" : "text-gray-500"}`}>
-          {chat.lastMessage.sender === "you" ? "You: " : ""}
-          {chat.lastMessage.text}
-        </p>
+        <h3 className="font-medium text-gray-900 truncate">{chat.name}</h3>
+        <p className="text-sm text-gray-500 truncate">Last message</p>
       </div>
-      {chat.unread > 0 && (
-        <div className="w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
-          {chat.unread}
-        </div>
-      )}
     </button>
-  )
+  );
 }
 
-// Message bubble component
-function MessageBubble({ message }: { message: any }) {
+function MessageBubble({ message, currentUserId }) {
+  const isSender = (message.sender?._id || message.sender) === currentUserId;
+
   return (
-    <div className={`flex ${message.sender === "you" ? "justify-end" : "justify-start"}`}>
+    <div className={`flex ${isSender ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[80%] md:max-w-[70%] rounded-lg p-3 ${
-          message.sender === "you"
-            ? "bg-[#4a3630] text-white rounded-br-none"
-            : "bg-white text-gray-800 rounded-bl-none shadow-sm"
+          isSender ? "bg-[#4a3630] text-white rounded-br-none" : "bg-white text-gray-800 rounded-bl-none shadow-sm"
         }`}
       >
         <p>{message.text}</p>
         <div
           className={`text-xs mt-1 flex items-center justify-end gap-1 ${
-            message.sender === "you" ? "text-gray-300" : "text-gray-500"
+            isSender ? "text-gray-300" : "text-gray-500"
           }`}
         >
-          <span>{message.time}</span>
-          {message.sender === "you" && (
-            <>
-              {message.status === "sent" && <Check size={12} />}
-              {message.status === "delivered" && <Check size={12} />}
-              {message.status === "read" && <CheckCheck size={12} />}
-            </>
-          )}
+          <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+          {isSender && <CheckCheck size={12} />}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function MessagesPage() {
-  const [selectedChat, setSelectedChat] = useState<any>(null)
-  const [message, setMessage] = useState("")
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const dispatch = useAppDispatch();
+  const socket = useSocket();
+  const messagesEndRef = useRef(null);
 
-  // Sample data for chats
-  const chats = [
-    {
-      id: 1,
-      user: {
-        name: "Sarah Johnson",
-        avatar: "/placeholder.svg?height=48&width=48",
-        online: true,
-      },
-      lastMessage: {
-        text: "Looking forward to our Python session tomorrow!",
-        time: "10:23 AM",
-        isRead: true,
-        sender: "them",
-      },
-      unread: 0,
-    },
-    {
-      id: 2,
-      user: {
-        name: "James Wilson",
-        avatar: "/placeholder.svg?height=48&width=48",
-        online: false,
-      },
-      lastMessage: {
-        text: "Thanks for the web design tips. They were really helpful!",
-        time: "Yesterday",
-        isRead: false,
-        sender: "them",
-      },
-      unread: 2,
-    },
-    {
-      id: 3,
-      user: {
-        name: "Emily Chen",
-        avatar: "/placeholder.svg?height=48&width=48",
-        online: true,
-      },
-      lastMessage: {
-        text: "I'd like to learn more about UX design. When are you available?",
-        time: "Yesterday",
-        isRead: true,
-        sender: "them",
-      },
-      unread: 0,
-    },
-  ]
+  const { user } = useSelector((state) => state.auth);
+  const { messages } = useSelector((state) => state.messages);
 
-  // Sample conversation data
-  const conversations = {
-    1: [
-      {
-        id: 1,
-        text: "Hi Sarah! I'm looking forward to our Python session tomorrow.",
-        time: "10:15 AM",
-        sender: "you",
-        status: "read",
-      },
-      {
-        id: 2,
-        text: "Looking forward to our Python session tomorrow!",
-        time: "10:23 AM",
-        sender: "them",
-        status: "read",
-      },
-      {
-        id: 3,
-        text: "Should I prepare anything specific for the session?",
-        time: "10:24 AM",
-        sender: "them",
-        status: "read",
-      },
-      {
-        id: 4,
-        text: "Just bring your laptop with Python installed. We'll start with the basics and work our way up.",
-        time: "10:30 AM",
-        sender: "you",
-        status: "read",
-      },
-      {
-        id: 5,
-        text: "Perfect! I have Python 3.9 installed. See you tomorrow at 10 AM.",
-        time: "10:35 AM",
-        sender: "them",
-        status: "read",
-      },
-    ],
-    2: [
-      {
-        id: 1,
-        text: "Hey James, how did the web design project go?",
-        time: "Yesterday, 3:45 PM",
-        sender: "you",
-        status: "read",
-      },
-      {
-        id: 2,
-        text: "It went really well! I used the layout techniques you taught me.",
-        time: "Yesterday, 4:20 PM",
-        sender: "them",
-        status: "read",
-      },
-      {
-        id: 3,
-        text: "Thanks for the web design tips. They were really helpful!",
-        time: "Yesterday, 4:22 PM",
-        sender: "them",
-        status: "delivered",
-      },
-      {
-        id: 4,
-        text: "Do you have time for another session next week?",
-        time: "Yesterday, 4:23 PM",
-        sender: "them",
-        status: "delivered",
-      },
-    ],
-  }
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [message, setMessage] = useState("");
 
-  // Set default selected chat
+  const [searchParams] = useSearchParams();
+  const selectedUserId = searchParams.get("user");
+  const { user: selectedUser } = useUserById(selectedUserId);
+
   useEffect(() => {
-    if (chats.length > 0 && !selectedChat) {
-      setSelectedChat(chats[0])
+    if (selectedUser) {
+      setSelectedChat(selectedUser);
     }
-  }, [chats, selectedChat])
+  }, [selectedUser]);
 
-  // Scroll to bottom of messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [selectedChat])
+    if (!selectedChat?._id) return;
+    socket.emit("join_room", selectedChat._id);
+    dispatch(getMessages(selectedChat._id));
+  }, [selectedChat, dispatch, socket]);
+
+  useEffect(() => {
+    if (!socket || !selectedChat?._id) return;
+
+    const handleReceive = (msg) => {
+      if (
+        (msg.sender === user._id && msg.receiver === selectedChat._id) ||
+        (msg.receiver === user._id && msg.sender === selectedChat._id)
+      ) {
+        dispatch(addMessage(msg));
+      }
+    };
+
+    socket.on("receive_message", handleReceive);
+    return () => socket.off("receive_message", handleReceive);
+  }, [socket, selectedChat, user._id, dispatch]);
 
   const handleSendMessage = () => {
-    if (message.trim() === "") return
+    if (!selectedChat?._id || !message.trim()) return;
 
-    // In a real app, you would send this to your backend
-    console.log("Message sent:", message)
-    setMessage("")
-  }
+    dispatch(sendMessage({ receiverId: selectedChat._id, text: message }));
+    socket.emit("send_message", {
+      text: message,
+      sender: user._id,
+      receiver: selectedChat._id,
+      room: selectedChat._id,
+    });
+    setMessage("");
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
     <div className="flex min-h-screen bg-[#FFF7D4]">
       <AppSidebar />
-
       <div className="flex-1 flex flex-col">
         <PageHeader title="Messages" backTo="/home-dashboard" />
-
         <div className="flex-1 flex flex-col md:flex-row">
-          {/* Chat List */}
-          <div className="w-full md:w-80 bg-white border-r border-gray-200 md:h-[calc(100vh-64px)] overflow-y-auto">
-            <div className="p-4">
-              <div className="relative mb-4">
-                <Input type="text" placeholder="Search messages..." variant="yellow" leftIcon={<Search size={16} />} />
-              </div>
-
-              <div className="space-y-1">
-                {chats.map((chat) => (
-                  <ChatListItem
-                    key={chat.id}
-                    chat={chat}
-                    isActive={selectedChat && selectedChat.id === chat.id}
-                    onClick={() => setSelectedChat(chat)}
-                  />
-                ))}
-              </div>
+          <div className="w-full md:w-80 bg-white border-r border-gray-200 md:h-[calc(100vh-64px)] overflow-y-auto p-4">
+            <div className="relative mb-4">
+              <Input
+                type="text"
+                placeholder="Search messages..."
+                variant="yellow"
+                leftIcon={<Search size={16} />}
+              />
             </div>
+            {selectedUser && (
+              <ChatListItem
+                chat={selectedUser}
+                isActive={selectedChat?._id === selectedUser._id}
+                onClick={() => setSelectedChat(selectedUser)}
+              />
+            )}
           </div>
 
-          {/* Chat Window */}
           {selectedChat ? (
             <div className="flex-1 flex flex-col h-[calc(100vh-64px)]">
-              {/* Chat Header */}
-              <div className="bg-white p-4 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Avatar src={selectedChat.user.avatar} size="md" fallback={selectedChat.user.name} />
-                    {selectedChat.user.online && (
-                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="font-medium text-gray-900">{selectedChat.user.name}</h2>
-                    <p className="text-xs text-gray-500">
-                      {selectedChat.user.online ? "Online" : "Last seen recently"}
-                    </p>
-                  </div>
+              <div className="bg-white p-4 border-b border-gray-200 flex items-center gap-3">
+                <div className="relative">
+                  <Avatar src={selectedChat.avatar} size="md" fallback={selectedChat.name} />
+                  {selectedChat.online && (
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm">
-                    View Profile
-                  </Button>
+                <div>
+                  <h2 className="font-medium text-gray-900">{selectedChat.name}</h2>
+                  <p className="text-xs text-gray-500">{selectedChat.online ? "Online" : "Offline"}</p>
                 </div>
               </div>
 
-              {/* Messages Area */}
               <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
                 <div className="space-y-4">
-                  {conversations[selectedChat.id]?.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} />
+                  {messages.map((msg) => (
+                    <MessageBubble key={msg._id} message={msg} currentUserId={user._id} />
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
               </div>
 
-              {/* Message Input */}
               <div className="bg-white p-3 border-t border-gray-200">
                 <div className="flex items-end gap-2">
                   <button className="p-2 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100">
@@ -300,8 +182,8 @@ export default function MessagesPage() {
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault()
-                          handleSendMessage()
+                          e.preventDefault();
+                          handleSendMessage();
                         }
                       }}
                     ></textarea>
@@ -312,7 +194,7 @@ export default function MessagesPage() {
                   <button
                     className="p-2 bg-[#4a3630] text-white rounded-full hover:bg-[#3a2a24] disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleSendMessage}
-                    disabled={message.trim() === ""}
+                    disabled={!message.trim()}
                   >
                     <Send size={20} />
                   </button>
@@ -345,12 +227,12 @@ export default function MessagesPage() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No conversation selected</h3>
-                <p className="text-gray-600">Choose a conversation from the list to start chatting</p>
+                <p className="text-gray-600">Choose a conversation to start chatting</p>
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
-  )
+  );
 }

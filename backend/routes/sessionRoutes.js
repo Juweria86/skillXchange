@@ -1,46 +1,77 @@
-const express = require("express");
-const { protect } = require("../middleware/authMiddleware");
-const {
-  getAllSessions,
-  createSession,
-  updateSessionStatus,
-} = require("../controllers/sessionController");
-const { body } = require("express-validator");
-
+const express = require('express');
 const router = express.Router();
+const Session = require('../models/Session');
+const { protect } = require("../middleware/authMiddleware");
 
-// ✅ GET all sessions for the logged-in user
-router.get("/", protect, getAllSessions);
+// Get all sessions for the authenticated user
+router.get('/', protect, async (req, res) => {
+  try {
+    const sessions = await Session.find({ userId: req.user.id }).sort({ date: 1 });
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
-// ✅ POST create a new session
-router.post(
-  "/",
-  protect,
-  [
-    body("teacher").notEmpty().withMessage("Teacher ID is required"),
-    body("skill").notEmpty().withMessage("Skill ID is required"),
-    body("scheduledAt")
-      .notEmpty()
-      .withMessage("Scheduled date is required")
-      .isISO8601()
-      .withMessage("Scheduled date must be a valid date"),
-    body("notes").optional().isString(),
-  ],
-  createSession
-);
+// Create a new session
+router.post('/', protect, async (req, res) => {
+  try {
+    const { title, date, startTime, endTime, skill, type } = req.body;
+    
+    const newSession = new Session({
+      title,
+      date,
+      startTime,
+      endTime,
+      skill,
+      type,
+      userId: req.user.id
+    });
 
-// ✅ PUT update session status
-router.put(
-  "/:id/status",
-  protect,
-  [
-    body("status")
-      .notEmpty()
-      .withMessage("Status is required")
-      .isIn(["pending", "confirmed", "completed", "cancelled"])
-      .withMessage("Status must be one of: pending, confirmed, completed, cancelled"),
-  ],
-  updateSessionStatus
-);
+    const savedSession = await newSession.save();
+    res.json(savedSession);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update a session
+router.put('/:id', protect, async (req, res) => {
+  try {
+    const { title, date, startTime, endTime, skill, type } = req.body;
+    
+    const updatedSession = await Session.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { title, date, startTime, endTime, skill, type },
+      { new: true }
+    );
+
+    if (!updatedSession) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    res.json(updatedSession);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete a session
+router.delete('/:id', protect, async (req, res) => {
+  try {
+    const deletedSession = await Session.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+
+    if (!deletedSession) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    res.json({ message: 'Session deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 module.exports = router;

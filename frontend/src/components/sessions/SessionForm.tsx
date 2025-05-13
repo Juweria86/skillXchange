@@ -6,16 +6,27 @@ import { X } from "lucide-react"
 import Card from "../ui/Card"
 import Button from "../ui/Button"
 
+interface SessionFormData {
+  id?: string;
+  title: string;
+  date: Date;
+  time: string; // Format: "HH:MM AM/PM - HH:MM AM/PM" or "HH:MM"
+  skill: string;
+  type: "learning" | "teaching";
+}
+
+interface SessionFormProps {
+  initialData?: SessionFormData;
+  onCancel: () => void;
+  onSubmit: (data: SessionFormData) => void;
+}
+
 export default function SessionForm({
   initialData,
   onCancel,
   onSubmit,
-}: {
-  initialData?: any
-  onCancel: () => void
-  onSubmit: (data: any) => void
-}) {
-  const [formData, setFormData] = useState(
+}: SessionFormProps) {
+  const [formData, setFormData] = useState<SessionFormData>(
     initialData || {
       title: "",
       date: new Date(),
@@ -27,28 +38,48 @@ export default function SessionForm({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData((prev: any) => ({
+    setFormData(prev => ({
       ...prev,
       [name]: value,
     }))
   }
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev: any) => ({
+    const date = new Date(e.target.value)
+    if (!isNaN(date.getTime())) {
+      setFormData(prev => ({
+        ...prev,
+        date,
+      }))
+    }
+  }
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = e.target.value
+    // Convert 24h format to 12h format if needed
+    setFormData(prev => ({
       ...prev,
-      date: new Date(e.target.value),
+      time,
     }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Combine date and time into a single string if needed
+    const timeString = formData.time.includes('-') 
+      ? formData.time 
+      : `${formData.time} - ${formData.time}` // Simple fallback
+    
     onSubmit({
       ...formData,
-      date: {
-        month: formData.date.toLocaleString('default', { month: 'short' }).toUpperCase(),
-        day: formData.date.getDate(),
-      }
+      time: timeString
     })
+  }
+
+  // Format date for input[type="date"]
+  const formatDateForInput = (date: Date) => {
+    return date.toISOString().split('T')[0]
   }
 
   return (
@@ -83,7 +114,7 @@ export default function SessionForm({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                   <input
                     type="date"
-                    value={formData.date.toISOString().split('T')[0]}
+                    value={formatDateForInput(formData.date)}
                     onChange={handleDateChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBEAA0]"
                     required
@@ -94,8 +125,8 @@ export default function SessionForm({
                   <input
                     type="time"
                     name="time"
-                    value={formData.time}
-                    onChange={handleChange}
+                    value={formData.time.split(' - ')[0]} // Just show start time
+                    onChange={handleTimeChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FBEAA0]"
                     required
                   />

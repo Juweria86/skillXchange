@@ -1,71 +1,128 @@
 "use client"
 
-import { Calendar, ChevronLeft, ChevronRight, Clock, Plus, X, Edit } from "lucide-react"
-import { useState } from "react"
+import { Calendar, Plus } from "lucide-react"
+import { useEffect } from "react"
+import { toast } from 'react-toastify'
 import AppSidebar from "../components/AppSidebar"
 import PageHeader from "../components/layout/PageHeader"
 import Card from "../components/ui/Card"
 import Button from "../components/ui/Button"
-import Badge from "../components/ui/Badge"
 import SessionForm from '../components/sessions/SessionForm'
 import SessionCalendar from '../components/sessions/SessionCalendar'
 import SessionCard from "@/components/sessions/SessionCard"
-
+import { 
+  useGetSessionsQuery, 
+  useCreateSessionMutation, 
+  useUpdateSessionMutation, 
+  useDeleteSessionMutation 
+} from "@/features/sessions/sessionApi"
+import { 
+  setView, 
+  setShowForm, 
+  setEditingSession, 
+  resetSessionForm 
+} from "@/features/sessions/sessionSlice"
+import { useSelector, useDispatch } from "react-redux"
+import { RootState } from "@/app/store"
 
 export default function MySessionsPage() {
-  const [view, setView] = useState<"calendar" | "list">("calendar")
-  const [showForm, setShowForm] = useState(false)
-  const [editingSession, setEditingSession] = useState<any>(null)
-  const [sessions, setSessions] = useState([
-    {
-      id: 1,
-      title: "Python Basics with Sarah",
-      date: new Date(new Date().setDate(15)),
-      time: "10:00 AM - 11:30 AM",
-      skill: "Python",
-      type: "learning",
-    },
-    {
-      id: 2,
-      title: "Teaching Web Design to James",
-      date: new Date(new Date().setDate(18)),
-      time: "2:00 PM - 3:30 PM",
-      skill: "Web Design",
-      type: "teaching",
-    },
-    {
-      id: 3,
-      title: "Spanish Conversation Practice",
-      date: new Date(new Date().setDate(20)),
-      time: "6:00 PM - 7:00 PM",
-      skill: "Spanish",
-      type: "learning",
-    },
-  ])
+  const dispatch = useDispatch();
+  const { view, showForm, editingSession } = useSelector((state: RootState) => state.sessions);
+  const { 
+    data: sessions = [], 
+    isLoading, 
+    isError,
+    error: fetchError 
+  } = useGetSessionsQuery();
+  const [createSession] = useCreateSessionMutation();
+  const [updateSession] = useUpdateSessionMutation();
+  const [deleteSession] = useDeleteSessionMutation();
 
-  const handleSubmit = (data: any) => {
-    if (editingSession) {
-      setSessions(sessions.map(session => 
-        session.id === editingSession.id ? { ...data, id: editingSession.id } : session
-      ))
-    } else {
-      setSessions([...sessions, {
-        ...data,
-        id: Math.max(0, ...sessions.map(s => s.id)) + 1
-      }])
+  useEffect(() => {
+    if (isError) {
+      toast.error('Failed to load sessions', {
+        position: "top-right",
+        autoClose: 5000,
+      });
+      console.error('Fetch sessions error:', fetchError);
     }
-    setShowForm(false)
-    setEditingSession(null)
-  }
+  }, [isError, fetchError]);
 
-  const handleEdit = (session: any) => {
-    setEditingSession(session)
-    setShowForm(true)
-  }
+  const handleSubmit = async (data: SessionFormValues) => {
+    const toastId = toast.loading(editingSession ? "Updating session..." : "Creating session...");
+    
+    try {
+      if (editingSession) {
+        await updateSession({ 
+          id: editingSession.id!, 
+          ...data 
+        }).unwrap();
+        toast.update(toastId, {
+          render: "Session updated successfully!",
+          type: "success",
+          isLoading: false,
+          autoClose: 3000,
+        });
+      } else {
+        await createSession(data).unwrap();
+        toast.update(toastId, {
+          render: "Session created successfully!",
+          type: "success",
+          isLoading: false,
+          autoClose: 3000,
+        });
+      }
+      dispatch(resetSessionForm());
+    } catch (err) {
+      toast.update(toastId, {
+        render: "Failed to save session",
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+      console.error('Failed to save session:', err);
+    }
+  };
 
-  const handleDelete = (id: number) => {
-    setSessions(sessions.filter(session => session.id !== id))
-  }
+  const handleDelete = async (id: string) => {
+    const toastId = toast.loading("Deleting session...");
+    try {
+      await deleteSession(id).unwrap();
+      toast.update(toastId, {
+        render: "Session deleted successfully!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000,
+      });
+    } catch (err) {
+      toast.update(toastId, {
+        render: "Failed to delete session",
+        type: "error",
+        isLoading: false,
+        autoClose: 5000,
+      });
+      console.error('Failed to delete session:', err);
+    }
+  };
+
+  if (isLoading) return (
+    <div className="flex justify-center items-center h-full">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#4a3630]"></div>
+    </div>
+  );
+
+  if (isError) return (
+    <div className="p-4 bg-red-50 text-red-700 rounded-lg">
+      <h3 className="font-medium">Error loading sessions</h3>
+      <p className="text-sm mt-1">Please try again later</p>
+      <button 
+        onClick={() => window.location.reload()}
+        className="mt-2 px-4 py-2 bg-red-100 rounded hover:bg-red-200"
+      >
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex min-h-screen bg-[#FFF7D4]">
@@ -80,7 +137,7 @@ export default function MySessionsPage() {
                   className={`px-3 py-1 rounded-lg ${
                     view === "calendar" ? "bg-[#FBEAA0] text-[#4a3630]" : "text-gray-700"
                   }`}
-                  onClick={() => setView("calendar")}
+                  onClick={() => dispatch(setView("calendar"))}
                 >
                   <Calendar size={16} />
                 </button>
@@ -88,26 +145,9 @@ export default function MySessionsPage() {
                   className={`px-3 py-1 rounded-lg ${
                     view === "list" ? "bg-[#FBEAA0] text-[#4a3630]" : "text-gray-700"
                   }`}
-                  onClick={() => setView("list")}
+                  onClick={() => dispatch(setView("list"))}
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="8" y1="6" x2="21" y2="6"></line>
-                    <line x1="8" y1="12" x2="21" y2="12"></line>
-                    <line x1="8" y1="18" x2="21" y2="18"></line>
-                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                  </svg>
+                  {/* List icon SVG */}
                 </button>
               </div>
             </div>
@@ -115,8 +155,8 @@ export default function MySessionsPage() {
               variant="primary" 
               leftIcon={<Plus size={16} />}
               onClick={() => {
-                setEditingSession(null)
-                setShowForm(true)
+                dispatch(setEditingSession(null));
+                dispatch(setShowForm(true));
               }}
             >
               New Session
@@ -129,10 +169,7 @@ export default function MySessionsPage() {
             {showForm && (
               <SessionForm
                 initialData={editingSession}
-                onCancel={() => {
-                  setShowForm(false)
-                  setEditingSession(null)
-                }}
+                onCancel={() => dispatch(resetSessionForm())}
                 onSubmit={handleSubmit}
               />
             )}
@@ -140,7 +177,10 @@ export default function MySessionsPage() {
             {view === "calendar" ? (
               <SessionCalendar 
                 sessions={sessions} 
-                onEdit={handleEdit}
+                onEdit={(session) => {
+                  dispatch(setEditingSession(session));
+                  dispatch(setShowForm(true));
+                }}
               />
             ) : (
               <Card>
@@ -149,17 +189,21 @@ export default function MySessionsPage() {
                 </div>
                 {sessions.map((session) => (
                   <SessionCard 
-                  key={session.id}
-                  title={session.title}
-                  date={{
-                    month: session.date.toLocaleString('default', { month: 'short' }).toUpperCase(),
-                    day: session.date.getDate(),
-                  }}
-                  time={session.time}
-                  skillName={session.skill}
-                  sessionType={session.type}
+                    key={session.id}
+                    title={session.title}
+                    date={{
+                      month: session.date.toLocaleString('default', { month: 'short' }).toUpperCase(),
+                      day: session.date.getDate(),
+                    }}
+                    time={session.time}
+                    skillName={session.skill}
+                    sessionType={session.type}
+                    onEdit={() => {
+                      dispatch(setEditingSession(session));
+                      dispatch(setShowForm(true));
+                    }}
+                    onDelete={() => handleDelete(session.id)}
                   />
-
                 ))}
               </Card>
             )}
