@@ -1,7 +1,17 @@
 const express = require("express");
-const { register, login, verifyEmail, resendVerification, forgotPassword, resetPassword, googleLogin } = require("../controllers/authController");
+const { register, 
+  login, 
+  verifyEmail, 
+  resendVerification, 
+  forgotPassword, 
+  resetPassword, 
+  googleLogin,
+createAdmin,
+ promoteToAdmin,
+} = require("../controllers/authController");
 const { body } = require("express-validator");
-
+const { check } = require("express-validator");
+const { protect } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 router.post(
@@ -28,6 +38,30 @@ router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.post("/google-login", googleLogin);
+
+
+// Create admin user
+router.post(
+  "/create-admin",
+  [
+    check("name", "Name is required").not().isEmpty(),
+    check("email", "Please include a valid email").isEmail(),
+    check("password", "Password must be at least 6 characters").isLength({ min: 6 }),
+    check("adminSecretKey", "Admin secret key is required").not().isEmpty(),
+  ],
+  createAdmin,
+)
+
+// Promote user to admin
+router.post(
+  "/promote-to-admin",
+  protect,
+  [
+    check("userId", "User ID is required").not().isEmpty(),
+    check("adminSecretKey", "Admin secret key is required").not().isEmpty(),
+  ],
+  promoteToAdmin,
+)
 
 
 

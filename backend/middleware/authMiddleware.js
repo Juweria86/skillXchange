@@ -30,4 +30,14 @@ exports.protect = async (req, res, next) => {
     console.error("JWT verification failed:", err.message);
     res.status(401).json({ message: "Unauthorized: Invalid or expired token" });
   }
+
 };
+
+// Middleware to check if user is an admin
+exports.isAdmin = (req, res, next) => {
+  if (req.user && req.user.isAdmin) {
+    next()
+  } else {
+    res.status(403).json({ message: "Access denied. Admin privileges required." })
+  }
+}
