@@ -1,16 +1,21 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { useAppDispatch, useAppSelector } from "../hooks/useTypedHooks"
 import { loginUser } from "../features/auth/authSlice"
-import AuthLayout from "../components/auth/AuthLayout"
-import Input from "../components/ui/Input"
-import Button from "../components/ui/Button"
+import { Button } from "@/components/ui/button"
+import Input from "@/components/ui/Input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
+import Badge from "@/components/ui/Badge"
 import SocialAuth from "../components/auth/SocialAuth"
+import Logo from "@/components/Logo"
 import toast from "react-hot-toast"
-import { Eye, EyeOff, Lock, Mail } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail, ArrowRight, GraduationCap, Users, BookOpen } from "lucide-react"
 
 export default function LoginPage() {
   const dispatch = useAppDispatch()
@@ -29,10 +34,6 @@ export default function LoginPage() {
     setShowPassword(!showPassword)
   }
 
-  const handleRememberMeChange = () => {
-    setRememberMe(!rememberMe)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -42,16 +43,25 @@ export default function LoginPage() {
       if (loginUser.fulfilled.match(result)) {
         toast.success("Logged in successfully")
 
-        // Check onboarding status from the response
+        console.log("Logged in user:", result.payload?.user)
+        alert(JSON.stringify(result.payload?.user, null, 2))
+
+        const isAdmin = result.payload?.user?.role === "admin"
+
+        if (isAdmin) {
+          navigate("/admin/dashboard", { replace: true })
+          return
+        }
+
         const isOnboarded = result.payload?.user?.isOnboarded
 
         if (!isOnboarded) {
-          navigate("/onboarding")
+          navigate("/onboarding", { replace: true })
         } else {
-          navigate("/home-dashboard")
+          navigate("/home-dashboard", { replace: true })
         }
       } else if (loginUser.rejected.match(result)) {
-        const errorMsg = result.error?.message
+        const errorMsg = result.payload || result.error?.message
 
         if (errorMsg?.includes("verify your email")) {
           toast.error("Please verify your email first.")
@@ -67,190 +77,244 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout>
-      <div className="flex flex-col md:flex-row w-full max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-        {/* Left side - Form */}
-        <div className="w-full md:w-1/2 p-8">
-          <div className="max-w-md mx-auto">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-[#4a3630]">Welcome back</h1>
-              <p className="text-gray-500 mt-2">Log in to your SkillXchange account</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="relative">
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  label="Email"
-                  placeholder="Enter your email"
-                  variant="yellow"
-                  required
-                  className="pl-10 transition-all duration-200 focus:ring-2 focus:ring-[#4a3630]"
-                />
-                <div className="absolute left-3 top-9 text-gray-500">
-                  <Mail size={18} />
-                </div>
-              </div>
-
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={handleChange}
-                  label="Password"
-                  placeholder="Enter your password"
-                  variant="yellow"
-                  required
-                  className="pl-10 pr-10 transition-all duration-200 focus:ring-2 focus:ring-[#4a3630]"
-                />
-                <div className="absolute left-3 top-9 text-gray-500">
-                  <Lock size={18} />
-                </div>
-                <button
-                  type="button"
-                  className="absolute right-3 top-9 text-gray-500 hover:text-gray-700"
-                  onClick={togglePasswordVisibility}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={handleRememberMeChange}
-                    className="h-4 w-4 text-[#4a3630] focus:ring-[#4a3630] border-gray-300 rounded"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                    Remember me
-                  </label>
-                </div>
-
-                <div className="text-sm">
-                  <Link
-                    to="/forgot-password"
-                    className="font-medium text-[#4a3630] hover:text-[#3a2a24] hover:underline transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                variant="primary"
-                fullWidth
-                disabled={loading}
-                className="py-3 text-base font-medium transition-transform active:scale-95"
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Logging in...
-                  </div>
-                ) : (
-                  "Log in"
-                )}
-              </Button>
-
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                </div>
-              </div>
-
-              <SocialAuth />
-
-              <p className="mt-6 text-center text-sm text-gray-600">
-                Don't have an account?{" "}
-                <Link
-                  to="/signup"
-                  className="font-medium text-[#4a3630] hover:text-[#3a2a24] hover:underline transition-colors"
-                >
-                  Sign up
-                </Link>
-              </p>
-            </form>
-
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
+    <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background">
+      {/* Header */}
+      <header className="bg-white py-4 px-6 shadow-sm">
+        <div className="container mx-auto max-w-6xl flex justify-between items-center">
+          <Logo size="md" />
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" className="text-[#0C4B93]">
+              Home
+            </Button>
+            <Button variant="ghost" className="text-[#0C4B93]">
+              About
+            </Button>
+            <Button variant="ghost" className="text-[#0C4B93]">
+              Contact
+            </Button>
           </div>
         </div>
+      </header>
 
-        {/* Right side - Illustration */}
-        <div className="hidden md:block md:w-1/2 bg-[#FFF7D4] p-8">
-          <div className="h-full flex flex-col justify-center items-center">
-            <div className="relative w-full max-w-md">
-              <div className="absolute -top-6 -right-6 w-20 h-20 bg-[#FBEAA0] rounded-full opacity-60"></div>
-              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#FBEAA0] rounded-full opacity-60"></div>
-
-              <img
-                src="/images/login-illustration.svg"
-                alt="Skill sharing illustration"
-                className="w-full relative z-10"
-              />
-
-              <div className="mt-12 text-center relative z-10">
-                <h2 className="text-2xl font-bold text-[#4a3630] mb-4">Welcome back!</h2>
-                <p className="text-gray-600">
-                  Continue your learning journey and connect with your skill-sharing community.
-                </p>
-
-                <div className="mt-8">
-                  <div className="flex justify-center space-x-4">
-                    <div className="flex -space-x-2">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div
-                          key={i}
-                          className={`w-8 h-8 rounded-full border-2 border-white bg-yellow-${i * 100}`}
-                        ></div>
-                      ))}
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-bold">2,000+</span> users already joined
-                    </p>
+      {/* Main Content */}
+      <div className="flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left side - Login Form */}
+            <div className="w-full">
+              <Card className="border-none shadow-xl bg-white">
+                <CardHeader className="space-y-4 pb-6">
+                  <div className="text-center">
+                    <Badge className="mb-4 bg-[#D7E9F7] text-[#0C4B93] hover:bg-[#D7E9F7]">
+                      <GraduationCap className="w-4 h-4 mr-2" />
+                      Skill Exchange Platform
+                    </Badge>
+                    <CardTitle className="text-3xl font-bold text-[#0C4B93]">Welcome back</CardTitle>
+                    <CardDescription className="text-lg text-gray-600 mt-2">
+                      Continue your skill exchange journey
+                    </CardDescription>
                   </div>
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-sm font-medium text-[#0C4B93]">
+                        Email Address
+                      </Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          value={form.email}
+                          onChange={handleChange}
+                          placeholder="Enter your university email"
+                          required
+                          className="pl-10 h-12 border-gray-200 focus:border-[#0C4B93] focus:ring-[#0C4B93]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="password" className="text-sm font-medium text-[#0C4B93]">
+                        Password
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          value={form.password}
+                          onChange={handleChange}
+                          placeholder="Enter your password"
+                          required
+                          className="pl-10 pr-10 h-12 border-gray-200 focus:border-[#0C4B93] focus:ring-[#0C4B93]"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#0C4B93]"
+                          onClick={togglePasswordVisibility}
+                        >
+                          {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Remember me & Forgot password */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="remember-me"
+                          checked={rememberMe}
+                          onCheckedChange={() => setRememberMe(!rememberMe)}
+                        />
+                        <Label htmlFor="remember-me" className="text-sm text-gray-600">
+                          Remember me
+                        </Label>
+                      </div>
+
+                      <Link
+                        to="/forgot-password"
+                        className="text-sm text-[#0C4B93] hover:text-[#064283] hover:underline"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+
+                    {/* Submit Button */}
+                    <Button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full h-12 bg-[#0C4B93] hover:bg-[#064283] text-white text-base font-medium"
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                          Signing in...
+                        </div>
+                      ) : (
+                        <>
+                          Sign in to platform
+                          <ArrowRight className="w-5 h-5 ml-2" />
+                        </>
+                      )}
+                    </Button>
+
+                    {error && (
+                      <div className="p-4 bg-red-50 border border-red-100 rounded-lg">
+                        <p className="text-red-600 text-sm">{error}</p>
+                      </div>
+                    )}
+
+                    <div className="relative my-6">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-white text-gray-500">Or continue with</span>
+                      </div>
+                    </div>
+
+                    <SocialAuth />
+
+                    <div className="text-center pt-4">
+                      <p className="text-sm text-gray-600">
+                        New to SkillXchange?{" "}
+                        <Link to="/signup" className="text-[#0C4B93] hover:text-[#064283] font-medium hover:underline">
+                          Join the skill exchange
+                        </Link>
+                      </p>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right side - Skill Exchange Information */}
+            <div className="hidden lg:block">
+              <div className="space-y-8">
+                <div className="text-center">
+                  <Badge className="mb-4 bg-[#E5EFF9] text-[#0C4B93] hover:bg-[#E5EFF9]">
+                    Unlock New Opportunities
+                  </Badge>
+                  <h1 className="text-4xl font-bold text-[#0C4B93] mb-4">Skill Exchange Platform</h1>
+                  <p className="text-lg text-gray-700 max-w-lg mx-auto">
+                    Connect, collaborate, and grow your skills with our peer-to-peer learning platform.
+                  </p>
                 </div>
+
+                {/* Skill Exchange Stats */}
+                {/* <div className="grid grid-cols-2 gap-4">
+                  <Card className="border-none bg-[#D7E9F7] p-6 text-center">
+                    <div className="text-2xl font-bold text-[#0C4B93] mb-2">1000+</div>
+                    <p className="text-sm text-gray-600">Skills Shared</p>
+                  </Card>
+                  <Card className="border-none bg-[#E5EFF9] p-6 text-center">
+                    <div className="text-2xl font-bold text-[#0C4B93] mb-2">500+</div>
+                    <p className="text-sm text-gray-600">Active Members</p>
+                  </Card>
+                </div> */}
+
+                {/* Benefits */}
+                {/* <div className="space-y-4">
+                  <div className="flex items-start gap-4 p-4 bg-white rounded-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#D7E9F7] flex items-center justify-center flex-shrink-0">
+                      <Users className="w-5 h-5 text-[#0C4B93]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#0C4B93] mb-1">Connect with Peers</h3>
+                      <p className="text-sm text-gray-600">Find and connect with peers who have the skills you need.</p>
+                    </div>
+                  </div> */}
+
+                  {/* <div className="flex items-start gap-4 p-4 bg-white rounded-lg shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#E5EFF9] flex items-center justify-center flex-shrink-0">
+                      <BookOpen className="w-5 h-5 text-[#0C4B93]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#0C4B93] mb-1">Expand Your Knowledge</h3>
+                      <p className="text-sm text-gray-600">Learn new skills and share your expertise with others.</p>
+                    </div>
+                  </div>
+                </div> */}
+
+                {/* Image */}
+                <Card className="border-none bg-white shadow-lg p-6">
+                  <img
+                    src="/login.jpg"
+                    alt="Collaboration"
+                    className="w-full h-auto object-cover rounded-lg"
+                  />
+                </Card>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </AuthLayout>
+    </div>
   )
 }

@@ -1,5 +1,5 @@
 import type React from "react"
-import { Card, CardContent } from "../ui/Card"
+import {Card, CardContent}  from "../ui/Card"
 import { cn } from "../../utils/cn"
 
 interface StatItemProps {

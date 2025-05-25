@@ -19,7 +19,7 @@ export async function fetchUserProfileAPI(token: string) {
 }
 
 export async function updateUserProfileAPI(formData: FormData, token: string) {
-  const res = await fetch(`${BASE_URL}`, {
+  const res = await fetch(`${BASE_URL}/`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,

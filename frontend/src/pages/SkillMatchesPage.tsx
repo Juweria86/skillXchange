@@ -1,213 +1,314 @@
-import React, { useState } from "react";
+"use client"
+
+import { useState } from "react"
 import {
   ChevronLeft,
   Menu,
   X,
-  Home,
-  UserCircle,
-  Brain,
-  RefreshCw,
-  Calendar,
-  MessageSquare,
-  Settings,
-  LogOut,
-  MapPin,
   Filter,
   Search,
   AlertCircle,
-  Loader2
-} from "lucide-react";
-import { useSkillMatches } from "../hooks/useSkillMatches";
-import { Link } from "react-router-dom";
+  Loader2,
+  MapPin,
+  MessageCircle,
+  UserPlus,
+} from "lucide-react"
+import { useSkillMatches } from "../hooks/useSkillMatches"
+import { Link } from "react-router-dom"
+import { toast } from "react-hot-toast"
+import AppSidebar from "../components/AppSidebar"
+import { useConnectionStatus } from "../hooks/useConnectionStatus"
+import  Avatar  from "@/components/ui/Avatar"
+import Select from "@/components/ui/Select"
 
 interface Match {
-  id: string;
-  name: string;
-  avatar: string;
-  location: string;
-  teaches: string[];
-  learns: string[];
-  match: number;
-  active: boolean;
+  id: string
+  name: string
+  avatar: string
+  location: string
+  teaches: string[]
+  learns: string[]
+  match: number
+  active: boolean
 }
 
 interface Filters {
-  location: string;
-  matchPercentage: string;
-  activeOnly: boolean;
-  skills: string[];
+  location: string
+  matchPercentage: string
+  activeOnly: boolean
+  skills: string[]
 }
 
+// Custom components
+const Card = ({ children, className = "", ...props }) => (
+  <div className={`bg-white rounded-lg shadow-md border border-gray-100 ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const CardContent = ({ children, className = "", ...props }) => (
+  <div className={`p-6 ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const CardHeader = ({ children, className = "", ...props }) => (
+  <div className={`p-6 pb-4 ${className}`} {...props}>
+    {children}
+  </div>
+)
+
+const CardTitle = ({ children, className = "", ...props }) => (
+  <h3 className={`text-lg font-semibold text-[#0C4B93] ${className}`} {...props}>
+    {children}
+  </h3>
+)
+
+const CardDescription = ({ children, className = "", ...props }) => (
+  <p className={`text-sm text-gray-600 ${className}`} {...props}>
+    {children}
+  </p>
+)
+
+const Button = ({
+  children,
+  className = "",
+  variant = "default",
+  size = "default",
+  asChild = false,
+  disabled = false,
+  ...props
+}) => {
+  const baseClasses =
+    "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#0C4B93] focus:ring-offset-2"
+  const variantClasses =
+    variant === "outline"
+      ? "border border-[#0C4B93] text-[#0C4B93] hover:bg-[#E5EFF9]"
+      : "bg-[#0C4B93] text-white hover:bg-[#064283]"
+  const sizeClasses = size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2"
+  const disabledClasses = disabled ? "opacity-50 cursor-not-allowed" : ""
+
+  const Component = asChild ? "div" : "button"
+
+  return (
+    <Component
+      className={`${baseClasses} ${variantClasses} ${sizeClasses} ${disabledClasses} ${className}`}
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </Component>
+  )
+}
+
+const Input = ({ className = "", ...props }) => (
+  <input
+    className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0C4B93] focus:border-[#0C4B93] ${className}`}
+    {...props}
+  />
+)
+
+const Badge = ({ children, className = "", variant = "default", ...props }) => {
+  const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+  const variantClasses =
+    variant === "outline"
+      ? "border border-[#0C4B93] text-[#0C4B93]"
+      : variant === "secondary"
+        ? "bg-[#D7E9F7] text-[#0C4B93]"
+        : "bg-green-100 text-green-800"
+
+  return (
+    <span className={`${baseClasses} ${variantClasses} ${className}`} {...props}>
+      {children}
+    </span>
+  )
+}
+
+const Checkbox = ({ checked, onCheckedChange, className = "", ...props }) => (
+  <input
+    type="checkbox"
+    checked={checked}
+    onChange={(e) => onCheckedChange?.(e.target.checked)}
+    className={`h-4 w-4 text-[#0C4B93] focus:ring-[#0C4B93] border-gray-300 rounded ${className}`}
+    {...props}
+  />
+)
+
+const Label = ({ children, className = "", ...props }) => (
+  <label className={`block text-sm font-medium text-gray-700 ${className}`} {...props}>
+    {children}
+  </label>
+)
+
 function SkillMatchesPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const { matches, loading, error, refetch } = useSkillMatches();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const { matches, loading, error, refetch } = useSkillMatches()
+  const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState<Filters>({
     location: "anywhere",
     matchPercentage: "all",
     activeOnly: false,
-    skills: []
-  });
+    skills: [],
+  })
+
+  const {
+    checkConnectionStatus,
+    sendConnectionRequest,
+    acceptConnectionRequest,
+    declineConnectionRequest,
+    loading: connectionLoading,
+  } = useConnectionStatus()
 
   const filteredMatches = matches.filter((match: Match) => {
-    // Search term filter
-    const matchesSearch = match.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      match.teaches.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      match.learns.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesSearch =
+      match.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      match.teaches.some((skill) => skill.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      match.learns.some((skill) => skill.toLowerCase().includes(searchTerm.toLowerCase()))
 
-    // Location filter
-    const matchesLocation = filters.location === "anywhere" || 
-      (filters.location === "nearby" && match.location.includes("Near")) || // Simplified for demo
-      (filters.location === "city" && match.location.includes("City")); // Simplified for demo
+    const matchesLocation =
+      filters.location === "anywhere" ||
+      (filters.location === "nearby" && match.location.includes("Near")) ||
+      (filters.location === "city" && match.location.includes("City"))
 
-    // Match percentage filter
-    const matchesPercentage = filters.matchPercentage === "all" ||
+    const matchesPercentage =
+      filters.matchPercentage === "all" ||
       (filters.matchPercentage === "90" && match.match >= 90) ||
       (filters.matchPercentage === "80" && match.match >= 80) ||
-      (filters.matchPercentage === "70" && match.match >= 70);
+      (filters.matchPercentage === "70" && match.match >= 70)
 
-    // Active status filter
-    const matchesActive = !filters.activeOnly || match.active;
+    const matchesActive = !filters.activeOnly || match.active
 
-    // Skills filter
-    const matchesSkills = filters.skills.length === 0 ||
-      filters.skills.some(skill => 
-        match.teaches.includes(skill) || match.learns.includes(skill)
-      );
+    const matchesSkills =
+      filters.skills.length === 0 ||
+      filters.skills.some((skill) => match.teaches.includes(skill) || match.learns.includes(skill))
 
-    return matchesSearch && matchesLocation && matchesPercentage && matchesActive && matchesSkills;
-  });
+    return matchesSearch && matchesLocation && matchesPercentage && matchesActive && matchesSkills
+  })
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked;
-    
-    setFilters(prev => ({
+  const handleFilterChange = (name: string, value: string | boolean) => {
+    setFilters((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-  };
+      [name]: value,
+    }))
+  }
 
   const handleSkillToggle = (skill: string) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       if (prev.skills.includes(skill)) {
         return {
           ...prev,
-          skills: prev.skills.filter(s => s !== skill)
-        };
+          skills: prev.skills.filter((s) => s !== skill),
+        }
       } else {
         return {
           ...prev,
-          skills: [...prev.skills, skill]
-        };
+          skills: [...prev.skills, skill],
+        }
       }
-    });
-  };
+    })
+  }
 
   if (loading && matches.length === 0) {
     return (
-      <div className="flex min-h-screen bg-[#FFF7D4] items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-[#4a3630] mx-auto" />
-          <p className="mt-4 text-lg text-gray-700">Finding your skill matches...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-[#0C4B93] mx-auto" />
+          <p className="mt-4 text-lg text-[#0C4B93] font-medium">Finding your skill matches...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen bg-[#FFF7D4] items-center justify-center">
-        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md">
-          <div className="text-red-500 mb-4">
-            <AlertCircle className="h-12 w-12 mx-auto" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading matches</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={refetch}
-            className="px-4 py-2 bg-[#4a3630] text-white rounded-lg hover:bg-[#3a2a24]"
-          >
-            Try Again
-          </button>
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background flex items-center justify-center">
+        <Card className="max-w-md border-none shadow-lg">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <CardTitle className="text-[#0C4B93] mb-2">Error loading matches</CardTitle>
+            <CardDescription className="mb-4">{error}</CardDescription>
+            <Button onClick={refetch} className="bg-[#0C4B93] hover:bg-[#064283]">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="flex min-h-screen bg-[#FFF7D4]">
+    <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background">
       {/* Mobile Sidebar Toggle */}
       <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-[#4a3630] text-white"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-[#0C4B93] text-white shadow-lg"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
         {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {/* Sidebar */}
-      <div
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
-      >
-        {/* Sidebar content remains the same */}
-        {/* ... */}
-      </div>
+      <AppSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Back Button */}
-        <div className="p-4 bg-white shadow-sm">
-          <a
-            href="/home-dashboard"
-            className="inline-flex items-center text-[#4a3630] hover:text-[#3a2a24] font-medium"
-          >
-            <ChevronLeft className="w-5 h-5 mr-1" />
-            Back to Dashboard
-          </a>
-        </div>
+        {/* Header */}
+        <header className="bg-white shadow-sm p-4 border-b border-gray-100">
+          <div className="max-w-7xl mx-auto">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center text-[#0C4B93] hover:text-[#064283] font-medium mb-4"
+            >
+              <ChevronLeft className="w-5 h-5 mr-1" />
+              Back to Dashboard
+            </Link>
+          </div>
+        </header>
 
         {/* Matches Content */}
         <main className="flex-1 p-4 md:p-6 overflow-auto">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-              <h1 className="text-2xl font-bold text-gray-900">Find Your Skill Matches</h1>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search matches..."
-                    className="pl-9 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4a3630] bg-[#FBEAA0]"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                  <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                </div>
-                <button
-                  className="flex items-center gap-2 px-4 py-2 bg-[#4a3630] text-white rounded-lg hover:bg-[#3a2a24] md:hidden"
-                  onClick={() => setFilterOpen(!filterOpen)}
-                >
-                  <Filter size={16} />
-                  <span>Filters</span>
-                </button>
-              </div>
+          <div className="max-w-7xl mx-auto">
+            {/* Page Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-[#0C4B93] mb-2">Find Your Skill Matches</h1>
+              <p className="text-gray-600">Connect with people who can help you learn new skills</p>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
+            {/* Search and Filter Bar */}
+            <div className="flex flex-col md:flex-row gap-4 mb-8">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <Input
+                  type="text"
+                  placeholder="Search by name, skills, or location..."
+                  className="pl-10 border-gray-200 focus:border-[#0C4B93] focus:ring-[#0C4B93]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="md:hidden border-[#0C4B93] text-[#0C4B93] hover:bg-[#E5EFF9]"
+                onClick={() => setFilterOpen(!filterOpen)}
+              >
+                <Filter size={16} className="mr-2" />
+                Filters
+              </Button>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-8">
               {/* Filters Sidebar - Mobile */}
               {filterOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden">
-                  <div className="absolute right-0 top-0 bottom-0 w-4/5 max-w-sm bg-white p-4 overflow-auto">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-lg font-bold">Filters</h2>
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden">
+                  <div className="absolute right-0 top-0 bottom-0 w-4/5 max-w-sm bg-white p-6 overflow-auto">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-lg font-bold text-[#0C4B93]">Filters</h2>
                       <button onClick={() => setFilterOpen(false)}>
                         <X size={20} />
                       </button>
                     </div>
-                    <FilterContent 
-                      filters={filters} 
+                    <FilterContent
+                      filters={filters}
                       onFilterChange={handleFilterChange}
                       onSkillToggle={handleSkillToggle}
                     />
@@ -216,45 +317,68 @@ function SkillMatchesPage() {
               )}
 
               {/* Filters Sidebar - Desktop */}
-              <div className="hidden md:block w-64 bg-white rounded-xl shadow-md p-4 h-fit sticky top-6">
-                <h2 className="text-lg font-bold mb-4">Filters</h2>
-                <FilterContent 
-                  filters={filters} 
-                  onFilterChange={handleFilterChange}
-                  onSkillToggle={handleSkillToggle}
-                />
+              <div className="hidden lg:block w-80">
+                <Card className="border-none shadow-md sticky top-6">
+                  <CardHeader>
+                    <CardTitle className="text-[#0C4B93]">Filters</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FilterContent
+                      filters={filters}
+                      onFilterChange={handleFilterChange}
+                      onSkillToggle={handleSkillToggle}
+                    />
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Matches Grid */}
               <div className="flex-1">
                 {filteredMatches.length > 0 ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {filteredMatches.map((match: Match) => (
-                      <MatchCard key={match.id} match={match} />
-                    ))}
-                  </div>
+                  <>
+                    <div className="mb-6">
+                      <p className="text-gray-600">
+                        Found {filteredMatches.length} match{filteredMatches.length !== 1 ? "es" : ""}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      {filteredMatches.map((match: Match) => (
+                        <MatchCard
+                          key={match.id}
+                          match={match}
+                          checkConnectionStatus={checkConnectionStatus}
+                          sendConnectionRequest={sendConnectionRequest}
+                          acceptConnectionRequest={acceptConnectionRequest}
+                          declineConnectionRequest={declineConnectionRequest}
+                          connectionLoading={connectionLoading}
+                        />
+                      ))}
+                    </div>
+                  </>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-md p-8 text-center">
-                    <Search className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">No matches found</h3>
-                    <p className="mt-1 text-gray-500">
-                      Try adjusting your search or filter criteria
-                    </p>
-                    <button
-                      onClick={() => {
-                        setSearchTerm("");
-                        setFilters({
-                          location: "anywhere",
-                          matchPercentage: "all",
-                          activeOnly: false,
-                          skills: []
-                        });
-                      }}
-                      className="mt-4 px-4 py-2 bg-[#4a3630] text-white rounded-lg hover:bg-[#3a2a24]"
-                    >
-                      Reset filters
-                    </button>
-                  </div>
+                  <Card className="border-none shadow-md">
+                    <CardContent className="p-12 text-center">
+                      <Search className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                      <CardTitle className="text-[#0C4B93] mb-2">No matches found</CardTitle>
+                      <CardDescription className="mb-6">
+                        Try adjusting your search or filter criteria to find more skill partners
+                      </CardDescription>
+                      <Button
+                        onClick={() => {
+                          setSearchTerm("")
+                          setFilters({
+                            location: "anywhere",
+                            matchPercentage: "all",
+                            activeOnly: false,
+                            skills: [],
+                          })
+                        }}
+                        className="bg-[#0C4B93] hover:bg-[#064283]"
+                      >
+                        Reset filters
+                      </Button>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             </div>
@@ -262,13 +386,13 @@ function SkillMatchesPage() {
         </main>
       </div>
     </div>
-  );
+  )
 }
 
 interface FilterContentProps {
-  filters: Filters;
-  onFilterChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  onSkillToggle: (skill: string) => void;
+  filters: Filters
+  onFilterChange: (name: string, value: string | boolean) => void
+  onSkillToggle: (skill: string) => void
 }
 
 function FilterContent({ filters, onFilterChange, onSkillToggle }: FilterContentProps) {
@@ -280,27 +404,25 @@ function FilterContent({ filters, onFilterChange, onSkillToggle }: FilterContent
     "Public Speaking",
     "UX Design",
     "Data Analysis",
-    "Project Management"
-  ];
+    "Project Management",
+  ]
 
   return (
     <div className="space-y-6">
       {/* Skills Filter */}
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Skills</h3>
-        <div className="space-y-2">
+        <Label className="text-sm font-medium text-[#0C4B93] mb-3 block">Skills</Label>
+        <div className="space-y-3">
           {skillsList.map((skill) => (
-            <div key={skill} className="flex items-center">
-              <input
-                type="checkbox"
+            <div key={skill} className="flex items-center space-x-2">
+              <Checkbox
                 id={`skill-${skill}`}
                 checked={filters.skills.includes(skill)}
-                onChange={() => onSkillToggle(skill)}
-                className="h-4 w-4 text-[#4a3630] focus:ring-[#4a3630] border-gray-300 rounded"
+                onCheckedChange={() => onSkillToggle(skill)}
               />
-              <label htmlFor={`skill-${skill}`} className="ml-2 block text-sm text-gray-700">
+              <Label htmlFor={`skill-${skill}`} className="text-sm text-gray-700">
                 {skill}
-              </label>
+              </Label>
             </div>
           ))}
         </div>
@@ -308,153 +430,237 @@ function FilterContent({ filters, onFilterChange, onSkillToggle }: FilterContent
 
       {/* Location */}
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Location</h3>
-        <select
-          name="location"
+        <Label className="text-sm font-medium text-[#0C4B93] mb-3 block">Location</Label>
+        <Select
           value={filters.location}
-          onChange={onFilterChange}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4a3630] bg-[#FBEAA0]"
-        >
-          <option value="anywhere">Anywhere</option>
-          <option value="nearby">Within 25 miles</option>
-          <option value="city">Same city</option>
-        </select>
+          onChange={(value) => onFilterChange("location", value)}
+          options={[
+            { value: "anywhere", label: "Anywhere" },
+            { value: "nearby", label: "Within 25 miles" },
+            { value: "city", label: "Same city" },
+          ]}
+          className="border-gray-200 focus:border-[#0C4B93] focus:ring-[#0C4B93]"
+        />
       </div>
 
-      {/* Match % Range */}
+      {/* Match Percentage */}
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Match Percentage</h3>
-        <select
-          name="matchPercentage"
+        <Label className="text-sm font-medium text-[#0C4B93] mb-3 block">Match Percentage</Label>
+        <Select
           value={filters.matchPercentage}
-          onChange={onFilterChange}
-          className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#4a3630] bg-[#FBEAA0]"
-        >
-          <option value="all">All matches</option>
-          <option value="90">90%+</option>
-          <option value="80">80%+</option>
-          <option value="70">70%+</option>
-        </select>
+          onChange={(value) => onFilterChange("matchPercentage", value)}
+          options={[
+            { value: "all", label: "All matches" },
+            { value: "90", label: "90%+" },
+            { value: "80", label: "80%+" },
+            { value: "70", label: "70%+" },
+          ]}
+          className="border-gray-200 focus:border-[#0C4B93] focus:ring-[#0C4B93]"
+        />
       </div>
 
       {/* Activity Status */}
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Activity Status</h3>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
+        <Label className="text-sm font-medium text-[#0C4B93] mb-3 block">Activity Status</Label>
+        <div className="flex items-center space-x-2">
+          <Checkbox
             id="active-only"
-            name="activeOnly"
             checked={filters.activeOnly}
-            onChange={onFilterChange}
-            className="h-4 w-4 text-[#4a3630] focus:ring-[#4a3630] border-gray-300 rounded"
+            onCheckedChange={(checked) => onFilterChange("activeOnly", checked)}
           />
-          <label htmlFor="active-only" className="ml-2 block text-sm text-gray-700">
+          <Label htmlFor="active-only" className="text-sm text-gray-700">
             Recently active only
-          </label>
+          </Label>
         </div>
       </div>
-
-      {/* Apply Filters Button */}
-      <button className="w-full py-2 bg-[#4a3630] text-white rounded-lg hover:bg-[#3a2a24] transition-colors">
-        Apply Filters
-      </button>
     </div>
-  );
+  )
 }
 
 interface MatchCardProps {
-  match: Match;
+  match: Match
+  checkConnectionStatus: (userId: string) => {
+    isConnected: boolean
+    isPending: boolean
+    isReceived: boolean
+    connectionId: string | null
+  }
+  sendConnectionRequest: (userId: string) => Promise<void>
+  acceptConnectionRequest: (requestId: string) => Promise<void>
+  declineConnectionRequest: (requestId: string) => Promise<void>
+  connectionLoading: boolean
 }
 
-function MatchCard({ match }: MatchCardProps) {
+function MatchCard({
+  match,
+  checkConnectionStatus,
+  sendConnectionRequest,
+  acceptConnectionRequest,
+  declineConnectionRequest,
+  connectionLoading,
+}: MatchCardProps) {
+  const [isLoading, setIsLoading] = useState(false)
+  const connectionStatus = checkConnectionStatus(match.id)
+
+  const handleConnect = async () => {
+    try {
+      setIsLoading(true)
+      await sendConnectionRequest(match.id)
+      toast.success(`Connection request sent to ${match.name}`)
+    } catch (error) {
+      toast.error("Failed to send connection request")
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAccept = async () => {
+    if (!connectionStatus.connectionId) return
+
+    try {
+      setIsLoading(true)
+      await acceptConnectionRequest(connectionStatus.connectionId)
+      toast.success(`You are now connected with ${match.name}`)
+    } catch (error) {
+      toast.error("Failed to accept connection request")
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDecline = async () => {
+    if (!connectionStatus.connectionId) return
+
+    try {
+      setIsLoading(true)
+      await declineConnectionRequest(connectionStatus.connectionId)
+      toast.success(`Connection request declined`)
+    } catch (error) {
+      toast.error("Failed to decline connection request")
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="p-5">
+    <Card className="border-none shadow-md hover:shadow-lg transition-shadow">
+      <CardContent className="p-6">
         <div className="flex items-start gap-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-            <img
-              src={match.avatar || "/placeholder.svg"}
-              width={64}
-              height={64}
-              alt={match.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <Avatar src={match.avatar || "/placeholder.svg"} fallback={match.name.charAt(0)} className="w-16 h-16" />
+
           <div className="flex-1">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start mb-3">
               <div>
-                <h3 className="font-medium text-gray-900">{match.name}</h3>
+                <h3 className="font-semibold text-[#0C4B93] text-lg">{match.name}</h3>
                 <div className="flex items-center text-gray-500 text-sm mt-1">
                   <MapPin size={14} className="mr-1" />
                   <span>{match.location}</span>
                 </div>
               </div>
-              <div
-                className={`px-2 py-1 rounded-full text-xs font-medium ${
+              <Badge
+                className={
                   match.match >= 90
-                    ? "bg-green-100 text-green-800"
+                    ? "bg-green-100 text-green-800 hover:bg-green-100"
                     : match.match >= 80
-                    ? "bg-blue-100 text-blue-800"
-                    : "bg-yellow-100 text-yellow-800"
-                }`}
+                      ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                      : "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+                }
               >
                 {match.match}% Match
-              </div>
+              </Badge>
             </div>
 
-            <div className="mt-3 space-y-2">
+            <div className="space-y-3 mb-4">
               <div>
-                <span className="text-xs font-medium text-gray-500">Teaches:</span>
-                <div className="flex flex-wrap gap-1 mt-1">
+                <span className="text-xs font-medium text-[#0C4B93] block mb-2">Teaches:</span>
+                <div className="flex flex-wrap gap-1">
                   {match.teaches.map((skill) => (
-                    <span
+                    <Badge
                       key={skill}
-                      className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 rounded-full"
+                      variant="secondary"
+                      className="text-xs bg-[#D7E9F7] text-[#0C4B93] hover:bg-[#D7E9F7]"
                     >
                       {skill}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
+
               {match.learns.length > 0 && (
                 <div>
-                  <span className="text-xs font-medium text-gray-500">Wants to learn:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
+                  <span className="text-xs font-medium text-[#0C4B93] block mb-2">Wants to learn:</span>
+                  <div className="flex flex-wrap gap-1">
                     {match.learns.map((skill) => (
-                      <span
-                        key={skill}
-                        className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full"
-                      >
+                      <Badge key={skill} variant="outline" className="text-xs border-[#0C4B93] text-[#0C4B93]">
                         {skill}
-                      </span>
+                      </Badge>
                     ))}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link to={`/messages?user=${match.id}`}>
-              <button className="px-3 py-1.5 bg-[#4a3630] text-white text-sm rounded-lg hover:bg-[#3a2a24] transition-colors">
-                Message
-              </button>
-              </Link>
+            <div className="flex flex-wrap gap-2">
+              {connectionStatus.isConnected ? (
+                <Button asChild size="sm" className="bg-[#0C4B93] hover:bg-[#064283]">
+                  <Link to={`/messages?userId=${match.id}`}>
+                    <MessageCircle size={14} className="mr-2" />
+                    Message
+                  </Link>
+                </Button>
+              ) : connectionStatus.isPending ? (
+                <Button size="sm" disabled className="bg-gray-300 text-gray-600">
+                  Request Sent
+                </Button>
+              ) : connectionStatus.isReceived ? (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-[#0C4B93] hover:bg-[#064283]"
+                    onClick={handleAccept}
+                    disabled={isLoading || connectionLoading}
+                  >
+                    {isLoading ? "Accepting..." : "Accept"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleDecline} disabled={isLoading || connectionLoading}>
+                    Decline
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  className="bg-[#0C4B93] hover:bg-[#064283]"
+                  onClick={handleConnect}
+                  disabled={isLoading || connectionLoading}
+                >
+                  <UserPlus size={14} className="mr-2" />
+                  {isLoading ? "Connecting..." : "Connect"}
+                </Button>
+              )}
 
+              <Button
+                asChild
+                size="sm"
+                variant="outline"
+                className="border-[#0C4B93] text-[#0C4B93] hover:bg-[#E5EFF9]"
+              >
+                <Link to={`/profile/${match.id}`}>View Profile</Link>
+              </Button>
 
-              
-              <button className="px-3 py-1.5 border border-[#4a3630] text-[#4a3630] text-sm rounded-lg hover:bg-[#FBEAA0] transition-colors">
-                View Profile
-              </button>
-              <button className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-100 transition-colors">
-                Request Session
-              </button>
+              {connectionStatus.isConnected && (
+                <Button size="sm" variant="outline" className="border-[#0C4B93] text-[#0C4B93] hover:bg-[#E5EFF9]">
+                  Request Session
+                </Button>
+              )}
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
+      </CardContent>
+    </Card>
+  )
 }
 
-export default SkillMatchesPage;
+export default SkillMatchesPage

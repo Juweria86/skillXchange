@@ -1,322 +1,512 @@
 "use client"
 
-import { useState } from "react"
-import { useSidebar } from "../context/SidebarContext"
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { useMessages } from "../context/MessageContext"
 import AppSidebar from "../components/AppSidebar"
 import ConnectionCard from "../components/connections/ConnectionCard"
 import RequestSessionModal from "../components/connections/RequestSessionModal"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/Tabs"
-import { Bell, Users, Clock, Search, Filter } from "lucide-react"
-import Button from "../components/ui/Button"
-import Input from "../components/ui/Input"
+import { Bell, Users, Clock, Search, Filter, AlertCircle, Loader2, ChevronLeft } from "lucide-react"
+import axios from "axios"
 
-// Mock data - replace with actual API calls
-const MOCK_CONNECTIONS = [
-  {
-    id: "1",
-    name: "Sarah Johnson",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["Digital Art", "UI Design"],
-    learning: ["Python", "Data Science"],
-    lastActive: "2 hours ago",
-    status: "connected",
-  },
-  {
-    id: "2",
-    name: "Michael Chen",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["JavaScript", "React"],
-    learning: ["Public Speaking", "Leadership"],
-    lastActive: "1 day ago",
-    status: "connected",
-  },
-  {
-    id: "3",
-    name: "Priya Patel",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["Content Writing", "SEO"],
-    learning: ["Video Editing", "Photography"],
-    lastActive: "Just now",
-    status: "connected",
-  },
-]
+const API_URL = "http://localhost:5000/api"
 
-const MOCK_PENDING_REQUESTS = [
-  {
-    id: "4",
-    name: "David Wilson",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["Photography", "Videography"],
-    learning: ["Spanish", "French"],
-    requestDate: "2 days ago",
-    message: "I'd love to learn from your photography skills!",
-    status: "pending",
-    direction: "incoming",
-  },
-  {
-    id: "5",
-    name: "Emma Rodriguez",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["Spanish", "Portuguese"],
-    learning: ["Web Development", "UX Design"],
-    requestDate: "5 days ago",
-    message: "I can help you with Spanish while learning web dev!",
-    status: "pending",
-    direction: "incoming",
-  },
-]
+// Custom components
+const Card = ({ children, className = "", ...props }) => (
+  <div className={`bg-white rounded-lg shadow-md border border-gray-100 ${className}`} {...props}>
+    {children}
+  </div>
+)
 
-const MOCK_SENT_REQUESTS = [
-  {
-    id: "6",
-    name: "James Lee",
-    avatar: "/placeholder.svg?height=80&width=80",
-    skills: ["Machine Learning", "Data Science"],
-    learning: ["Guitar", "Music Theory"],
-    requestDate: "1 day ago",
-    message: "I'd like to learn guitar from you!",
-    status: "pending",
-    direction: "outgoing",
-  },
-]
+const Button = ({ children, className = "", variant = "default", size = "default", ...props }) => {
+  const baseClasses =
+    "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#0C4B93] focus:ring-offset-2"
+  const variantClasses =
+    variant === "outline"
+      ? "border border-[#0C4B93] text-[#0C4B93] hover:bg-[#E5EFF9]"
+      : "bg-[#0C4B93] text-white hover:bg-[#064283]"
+  const sizeClasses = size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2"
+
+  return (
+    <button className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className}`} {...props}>
+      {children}
+    </button>
+  )
+}
+
+const Input = ({ className = "", ...props }) => (
+  <input
+    className={`w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0C4B93] focus:border-[#0C4B93] ${className}`}
+    {...props}
+  />
+)
+
+const Badge = ({ children, className = "", ...props }) => (
+  <span
+    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#0C4B93] text-white ${className}`}
+    {...props}
+  >
+    {children}
+  </span>
+)
+
+// Types for our connections
+interface ConnectionUser {
+  _id: string
+  name: string
+  profileImage?: string
+  email?: string
+}
+
+interface Connection {
+  _id: string
+  user: ConnectionUser
+  createdAt: string
+  message?: string
+}
+
+interface ConnectionsData {
+  accepted: Connection[]
+  pending: {
+    sent: Connection[]
+    received: Connection[]
+  }
+}
 
 export default function ConnectionsPage() {
-  const { sidebarOpen } = useSidebar()
+  const navigate = useNavigate()
+  const { setCurrentChat } = useMessages()
   const [activeTab, setActiveTab] = useState("connections")
   const [searchQuery, setSearchQuery] = useState("")
-  const [connections, setConnections] = useState(MOCK_CONNECTIONS)
-  const [pendingRequests, setPendingRequests] = useState(MOCK_PENDING_REQUESTS)
-  const [sentRequests, setSentRequests] = useState(MOCK_SENT_REQUESTS)
+  const [connections, setConnections] = useState<Connection[]>([])
+  const [pendingRequests, setPendingRequests] = useState<Connection[]>([])
+  const [sentRequests, setSentRequests] = useState<Connection[]>([])
   const [isRequestSessionModalOpen, setIsRequestSessionModalOpen] = useState(false)
-  const [selectedConnection, setSelectedConnection] = useState<any>(null)
+  const [selectedConnection, setSelectedConnection] = useState<Connection | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const token = localStorage.getItem("token")
+
+  // Fetch connections from the backend
+  useEffect(() => {
+    const fetchConnections = async () => {
+      if (!token) {
+        navigate("/login")
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const response = await axios.get(`${API_URL}/connections`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        const data: ConnectionsData = response.data
+
+        setConnections(data.accepted || [])
+        setPendingRequests(data.pending.received || [])
+        setSentRequests(data.pending.sent || [])
+      } catch (err: any) {
+        console.error("Error fetching connections:", err)
+        setError(err.response?.data?.message || "Failed to load connections")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchConnections()
+  }, [token, navigate])
 
   // Filter connections based on search query
   const filteredConnections = connections.filter((connection) =>
-    connection.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    connection.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const filteredPendingRequests = pendingRequests.filter((request) =>
-    request.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    request.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const filteredSentRequests = sentRequests.filter((request) =>
-    request.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    request.user.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   // Handle accepting a connection request
-  const handleAcceptRequest = (requestId: string) => {
-    // Find the request
-    const request = pendingRequests.find((req) => req.id === requestId)
-    if (!request) return
+  const handleAcceptRequest = async (requestId: string) => {
+    if (!token) return
 
-    // Move from pending to connections
-    setConnections([...connections, {
-      ...request, status: "connected",
-      lastActive: ""
-    }])
+    try {
+      await axios.post(
+        `${API_URL}/connections/accept/${requestId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
 
-    // Remove from pending
-    setPendingRequests(pendingRequests.filter((req) => req.id !== requestId))
+      // Find the request
+      const request = pendingRequests.find((req) => req._id === requestId)
+      if (!request) return
 
-    // In a real app, you would make an API call here
+      // Move from pending to connections
+      setConnections((prev) => [...prev, request])
+
+      // Remove from pending
+      setPendingRequests((prev) => prev.filter((req) => req._id !== requestId))
+    } catch (err: any) {
+      console.error("Error accepting request:", err)
+      alert(err.response?.data?.message || "Failed to accept request")
+    }
   }
 
   // Handle declining a connection request
-  const handleDeclineRequest = (requestId: string) => {
-    // Remove from pending
-    setPendingRequests(pendingRequests.filter((req) => req.id !== requestId))
+  const handleDeclineRequest = async (requestId: string) => {
+    if (!token) return
 
-    // In a real app, you would make an API call here
+    try {
+      await axios.post(
+        `${API_URL}/connections/decline/${requestId}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+
+      // Remove from pending
+      setPendingRequests((prev) => prev.filter((req) => req._id !== requestId))
+    } catch (err: any) {
+      console.error("Error declining request:", err)
+      alert(err.response?.data?.message || "Failed to decline request")
+    }
   }
 
   // Handle canceling a sent request
-  const handleCancelRequest = (requestId: string) => {
-    // Remove from sent requests
-    setSentRequests(sentRequests.filter((req) => req.id !== requestId))
+  const handleCancelRequest = async (requestId: string) => {
+    if (!token) return
 
-    // In a real app, you would make an API call here
+    try {
+      await axios.delete(`${API_URL}/connections/${requestId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      // Remove from sent requests
+      setSentRequests((prev) => prev.filter((req) => req._id !== requestId))
+    } catch (err: any) {
+      console.error("Error canceling request:", err)
+      alert(err.response?.data?.message || "Failed to cancel request")
+    }
+  }
+
+  // Handle messaging a connection
+  const handleMessage = async (connection: Connection) => {
+    try {
+      // Set the current chat to this connection's user
+      setCurrentChat({
+        id: connection.user._id,
+        user: {
+          _id: connection.user._id,
+          name: connection.user.name,
+          avatar: connection.user.profileImage,
+          online: false, // We don't know the online status yet
+        },
+        lastMessage: {
+          text: "",
+          time: "",
+          isRead: true,
+          sender: "you",
+        },
+        unread: 0,
+      })
+
+      // Navigate to messages page
+      navigate("/messages")
+    } catch (err) {
+      console.error("Error navigating to messages:", err)
+    }
   }
 
   // Handle requesting a session
-  const handleRequestSession = (connection: any) => {
+  const handleRequestSession = (connection: Connection) => {
     setSelectedConnection(connection)
     setIsRequestSessionModalOpen(true)
   }
 
   // Handle submitting a session request
-  const handleSubmitSessionRequest = (sessionDetails: any) => {
-    console.log("Session requested:", { connection: selectedConnection, details: sessionDetails })
-    // In a real app, you would make an API call here
-    setIsRequestSessionModalOpen(false)
-    setSelectedConnection(null)
+  const handleSubmitSessionRequest = async (sessionDetails: any) => {
+    if (!selectedConnection || !token) return
+
+    try {
+      console.log("Session requested:", { connection: selectedConnection, details: sessionDetails })
+
+      // Close the modal
+      setIsRequestSessionModalOpen(false)
+      setSelectedConnection(null)
+
+      // Show success message
+      alert("Session request sent successfully!")
+    } catch (err: any) {
+      console.error("Error requesting session:", err)
+      alert(err.response?.data?.message || "Failed to request session")
+    }
+  }
+
+  // Show loading state
+  if (loading && connections.length === 0 && pendingRequests.length === 0 && sentRequests.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background flex">
+        <AppSidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-[#0C4B93] mx-auto" />
+            <p className="mt-4 text-[#0C4B93] font-medium">Loading connections...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background flex">
+        <AppSidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <Card className="max-w-md p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading connections</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="flex h-screen bg-[#FFF7D4]">
-      <AppSidebar />
+    <div className="min-h-screen bg-gradient-to-b from-[#E5EFF9] to-background">
+      <div className="flex">
+        <AppSidebar />
 
-      <div
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : ""}`}
-      >
-        {/* Header */}
-        <header className="bg-white border-b sticky top-0 z-10 px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-[#4a3630]">My Connections</h1>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input
-                  type="text"
-                  placeholder="Search connections..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full sm:w-64 rounded-lg border border-gray-300 focus:border-[#4a3630] focus:ring-1 focus:ring-[#4a3630]"
-                />
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Header */}
+          <header className="bg-white shadow-sm p-4 border-b border-gray-100">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => navigate("/home-dashboard")}
+                    className="inline-flex items-center text-[#0C4B93] hover:text-[#064283] font-medium lg:hidden"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-1" />
+                    Back
+                  </button>
+                  <h1 className="text-2xl font-bold text-[#0C4B93]">My Connections</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                    <Input
+                      type="text"
+                      placeholder="Search connections..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-4 py-2 w-full sm:w-64"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-1">
+                    <Filter size={16} />
+                    Filter
+                  </Button>
+                </div>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="hidden sm:flex items-center gap-1"
-                leftIcon={<Filter size={16} />}
-              >
-                Filter
-              </Button>
             </div>
-          </div>
-        </header>
+          </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
-          <Tabs defaultValue="connections" onValueChange={setActiveTab} className="w-full">
-            <TabsList className="mb-6 bg-gray-100 p-1 rounded-lg">
-              <TabsTrigger
-                value="connections"
-                className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-                  activeTab === "connections"
-                    ? "bg-white shadow-sm text-[#4a3630] font-medium"
-                    : "text-gray-600 hover:text-[#4a3630]"
-                }`}
-              >
-                <Users size={18} />
-                <span>Connections</span>
-                <span className="bg-[#4a3630] text-white text-xs rounded-full px-2 py-0.5 ml-1">
-                  {connections.length}
-                </span>
-              </TabsTrigger>
+          {/* Main Content */}
+          <main className="flex-1 p-4 md:p-6 overflow-auto">
+            <div className="max-w-7xl mx-auto">
+              {/* Tabs */}
+              <Card className="mb-6 p-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                      activeTab === "connections"
+                        ? "bg-[#0C4B93] text-white"
+                        : "text-gray-600 hover:bg-[#E5EFF9] hover:text-[#0C4B93]"
+                    }`}
+                    onClick={() => setActiveTab("connections")}
+                  >
+                    <Users size={18} />
+                    <span className="hidden sm:inline">Connections</span>
+                    <Badge className="bg-white text-[#0C4B93]">{connections.length}</Badge>
+                  </button>
 
-              <TabsTrigger
-                value="requests"
-                className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-                  activeTab === "requests"
-                    ? "bg-white shadow-sm text-[#4a3630] font-medium"
-                    : "text-gray-600 hover:text-[#4a3630]"
-                }`}
-              >
-                <Bell size={18} />
-                <span>Requests</span>
-                <span className="bg-[#4a3630] text-white text-xs rounded-full px-2 py-0.5 ml-1">
-                  {pendingRequests.length}
-                </span>
-              </TabsTrigger>
+                  <button
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                      activeTab === "requests"
+                        ? "bg-[#0C4B93] text-white"
+                        : "text-gray-600 hover:bg-[#E5EFF9] hover:text-[#0C4B93]"
+                    }`}
+                    onClick={() => setActiveTab("requests")}
+                  >
+                    <Bell size={18} />
+                    <span className="hidden sm:inline">Requests</span>
+                    <Badge className="bg-white text-[#0C4B93]">{pendingRequests.length}</Badge>
+                  </button>
 
-              <TabsTrigger
-                value="sent"
-                className={`flex items-center gap-2 px-4 py-2 rounded-md ${
-                  activeTab === "sent"
-                    ? "bg-white shadow-sm text-[#4a3630] font-medium"
-                    : "text-gray-600 hover:text-[#4a3630]"
-                }`}
-              >
-                <Clock size={18} />
-                <span>Sent</span>
-                <span className="bg-[#4a3630] text-white text-xs rounded-full px-2 py-0.5 ml-1">
-                  {sentRequests.length}
-                </span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="connections" className="space-y-6">
-              {filteredConnections.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredConnections.map((connection) => (
-                    <ConnectionCard
-                      key={connection.id}
-                      connection={connection}
-                      onRequestSession={() => handleRequestSession(connection)}
-                    />
-                  ))}
+                  <button
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                      activeTab === "sent"
+                        ? "bg-[#0C4B93] text-white"
+                        : "text-gray-600 hover:bg-[#E5EFF9] hover:text-[#0C4B93]"
+                    }`}
+                    onClick={() => setActiveTab("sent")}
+                  >
+                    <Clock size={18} />
+                    <span className="hidden sm:inline">Sent</span>
+                    <Badge className="bg-white text-[#0C4B93]">{sentRequests.length}</Badge>
+                  </button>
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Users size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No connections found</h3>
-                  <p className="text-gray-500 mb-6">
-                    {searchQuery ? "No connections match your search criteria." : "You don't have any connections yet."}
-                  </p>
-                  {!searchQuery && <Button variant="primary">Find People to Connect</Button>}
-                </div>
-              )}
-            </TabsContent>
+              </Card>
 
-            <TabsContent value="requests" className="space-y-6">
-              {filteredPendingRequests.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredPendingRequests.map((request) => (
-                    <ConnectionCard
-                      key={request.id}
-                      connection={request}
-                      isPending={true}
-                      onAccept={() => handleAcceptRequest(request.id)}
-                      onDecline={() => handleDeclineRequest(request.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Bell size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No pending requests</h3>
-                  <p className="text-gray-500 mb-6">
-                    {searchQuery
-                      ? "No requests match your search criteria."
-                      : "You don't have any pending connection requests."}
-                  </p>
+              {/* Tab Content */}
+              {activeTab === "connections" && (
+                <div className="space-y-6">
+                  {filteredConnections.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredConnections.map((connection) => (
+                        <ConnectionCard
+                          key={connection._id}
+                          connection={{
+                            id: connection._id,
+                            name: connection.user.name,
+                            avatar: connection.user.profileImage || "/placeholder.svg?height=80&width=80",
+                            skills: [], // You'll need to add skills to your connection model
+                            learning: [], // You'll need to add learning to your connection model
+                            lastActive: "Recently", // You'll need to track this
+                            status: "connected",
+                          }}
+                          onRequestSession={() => handleRequestSession(connection)}
+                          onMessage={() => handleMessage(connection)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="p-12 text-center">
+                      <Users size={48} className="mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-[#0C4B93] mb-2">No connections found</h3>
+                      <p className="text-gray-500 mb-6">
+                        {searchQuery
+                          ? "No connections match your search criteria."
+                          : "You don't have any connections yet."}
+                      </p>
+                      {!searchQuery && (
+                        <Button onClick={() => navigate("/skill-matches")}>Find People to Connect</Button>
+                      )}
+                    </Card>
+                  )}
                 </div>
               )}
-            </TabsContent>
 
-            <TabsContent value="sent" className="space-y-6">
-              {filteredSentRequests.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredSentRequests.map((request) => (
-                    <ConnectionCard
-                      key={request.id}
-                      connection={request}
-                      isSent={true}
-                      onCancel={() => handleCancelRequest(request.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <Clock size={48} className="mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No sent requests</h3>
-                  <p className="text-gray-500 mb-6">
-                    {searchQuery
-                      ? "No sent requests match your search criteria."
-                      : "You haven't sent any connection requests yet."}
-                  </p>
-                  {!searchQuery && <Button variant="primary">Find People to Connect</Button>}
+              {activeTab === "requests" && (
+                <div className="space-y-6">
+                  {filteredPendingRequests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredPendingRequests.map((request) => (
+                        <ConnectionCard
+                          key={request._id}
+                          connection={{
+                            id: request._id,
+                            name: request.user.name,
+                            avatar: request.user.profileImage || "/placeholder.svg?height=80&width=80",
+                            skills: [], // You'll need to add skills to your connection model
+                            learning: [], // You'll need to add learning to your connection model
+                            requestDate: new Date(request.createdAt).toLocaleDateString(),
+                            message: request.message,
+                            status: "pending",
+                            direction: "incoming",
+                          }}
+                          isPending={true}
+                          onAccept={() => handleAcceptRequest(request._id)}
+                          onDecline={() => handleDeclineRequest(request._id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="p-12 text-center">
+                      <Bell size={48} className="mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-[#0C4B93] mb-2">No pending requests</h3>
+                      <p className="text-gray-500 mb-6">
+                        {searchQuery
+                          ? "No requests match your search criteria."
+                          : "You don't have any pending connection requests."}
+                      </p>
+                    </Card>
+                  )}
                 </div>
               )}
-            </TabsContent>
-          </Tabs>
-        </main>
+
+              {activeTab === "sent" && (
+                <div className="space-y-6">
+                  {filteredSentRequests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredSentRequests.map((request) => (
+                        <ConnectionCard
+                          key={request._id}
+                          connection={{
+                            id: request._id,
+                            name: request.user.name,
+                            avatar: request.user.profileImage || "/placeholder.svg?height=80&width=80",
+                            skills: [], // You'll need to add skills to your connection model
+                            learning: [], // You'll need to add learning to your connection model
+                            requestDate: new Date(request.createdAt).toLocaleDateString(),
+                            status: "pending",
+                            direction: "outgoing",
+                          }}
+                          isSent={true}
+                          onCancel={() => handleCancelRequest(request._id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="p-12 text-center">
+                      <Clock size={48} className="mx-auto text-gray-400 mb-4" />
+                      <h3 className="text-lg font-medium text-[#0C4B93] mb-2">No sent requests</h3>
+                      <p className="text-gray-500 mb-6">
+                        {searchQuery
+                          ? "No sent requests match your search criteria."
+                          : "You haven't sent any connection requests yet."}
+                      </p>
+                      {!searchQuery && (
+                        <Button onClick={() => navigate("/skill-matches")}>Find People to Connect</Button>
+                      )}
+                    </Card>
+                  )}
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
 
       {/* Request Session Modal */}
       {isRequestSessionModalOpen && selectedConnection && (
         <RequestSessionModal
-          connection={selectedConnection}
+          connection={{
+            id: selectedConnection.user._id,
+            name: selectedConnection.user.name,
+            avatar: selectedConnection.user.profileImage || "/placeholder.svg?height=80&width=80",
+            skills: [], // You'll need to add skills to your connection model
+          }}
           isOpen={isRequestSessionModalOpen}
           onClose={() => {
             setIsRequestSessionModalOpen(false)

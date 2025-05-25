@@ -1,5 +1,5 @@
 import type React from "react"
-import Card from "../ui/Card"
+import {Card} from "../ui/Card"
 
 interface AuthCardProps {
   children: React.ReactNode

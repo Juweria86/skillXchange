@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import Card from "../ui/Card"
+import {Card} from "../ui/Card"
 import { useState } from "react"
 
 
